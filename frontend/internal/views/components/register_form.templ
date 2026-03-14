@@ -1,0 +1,15 @@
+package components
+
+templ RegisterForm() {
+  <form hx-post="/user/register" hx-target="#page" hx-swap="outerHTML">
+    <label for="username">Pseudo</label>
+    <input type="text" name="username"/>
+    <label for="email">Email</label>
+    <input type="email" name="email"/>
+    <label for="password">Mot de passe</label>
+    <input type="password" name="password"/>
+    <label for="phonenumber">Portable</label>
+    <input type="tel" name="phonenumber" pattern="[0-9]{10}" />
+    <input type="submit" />
+  </form>
+}

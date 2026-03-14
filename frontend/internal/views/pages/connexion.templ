@@ -1,0 +1,19 @@
+package pages
+
+import "clubmanager/internal/views/layout"
+import "clubmanager/internal/views/components"
+
+
+templ Connexion() {
+  @layout.Page(false) {
+    <main>
+      <div>
+        <button type="button" hx-get="/user/register" hx-trigger="click" hx-target="#connexionForm" hx-swap="innerHTML">Register</button>
+        <button type="button" hx-get="/user/login" hx-trigger="click" hx-target="#connexionForm" hx-swap="innerHTML">Login</button>
+      </div>
+      <div id="connexionForm">
+        @components.RegisterForm()
+      </div>
+    </main>
+  }
+}

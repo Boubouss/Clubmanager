@@ -1,0 +1,12 @@
+package pages
+
+import "clubmanager/internal/views/layout"
+
+
+templ Home(username string) {
+  @layout.Page(true) {
+    <div>
+        Salut { username } !    
+    </div>
+  }
+}

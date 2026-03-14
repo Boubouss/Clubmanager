@@ -1,0 +1,11 @@
+package layout
+
+templ Page(isAuth bool) {
+  @Base() {
+    <div id="page">
+      @Header(isAuth)
+      { children... }
+      @Footer()
+    </div>
+  }
+}

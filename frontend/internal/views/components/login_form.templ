@@ -1,0 +1,11 @@
+package components
+
+templ LoginForm() {
+  <form hx-post="/user/login" hx-target="#page" hx-swap="outerHTML">
+    <label for="email">Email</label>
+    <input type="email" name="email"/>
+    <label for="password">Mot de passe</label>
+    <input type="text" name="password"/>
+    <input type="submit" />
+  </form>
+}

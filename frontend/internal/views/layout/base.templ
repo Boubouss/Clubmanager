@@ -1,0 +1,16 @@
+package layout
+
+templ Base() {
+  <!DOCTYPE html>
+  <html lang="fr">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>ClubManager</title>
+      <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js" integrity="sha384-/TgkGk7p307TH7EXJDuUlgG3Ce1UVolAOFopFekQkkXihi5u/6OCvVKyz1W+idaz" crossorigin="anonymous"></script>
+    </head>
+    <body hx-headers='{"X-CSRF-Token": "token"}' hx-boost="true">
+      { children... }
+    </body>
+  </html>
+}
