@@ -3,7 +3,6 @@ package service
 import (
 	"clubmanager/services/users/models"
 	"clubmanager/services/users/repositories"
-	"fmt"
 
 	"context"
 	"os"

@@ -8,7 +8,8 @@ import (
 
 func main() {
   app := echo.New()
-
+  app.Static("/public", "/public")
+  
   homeHandler := handler.NewHomeHandler()
   userHandler := handler.NewUserHandler()
 

@@ -41,9 +41,9 @@ func (r userRepository) CreateUser(ctx context.Context, data *models.CreateUserR
   fmt.Println(md.Get("user-agent")[0])
   
   _, err := r.db.Exec(ctx, fmt.Sprintf(`
-    SET LOCAL app.current_user_id = '%s';
-    SET LOCAL app.client_ip = '%s';
-    SET LOCAL app.user_agent = '%s';
+    SET LOCAL current_user_id = '%s';
+    SET LOCAL client_ip = '%s';
+    SET LOCAL user_agent = '%s';
   `,"NULL", md.Get("client-ip")[0], md.Get("user-agent")[0]))
 
   if err != nil {
