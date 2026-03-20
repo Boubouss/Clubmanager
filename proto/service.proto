@@ -5,7 +5,7 @@ package proto;
 
 option go_package = "clubmanager/api/grpc/proto;proto";
 
-import "api/grpc/proto/user_message.proto";
+import "user_message.proto";
 
 service ClubManagerService {
   rpc CreateUser(CreateUserRequest) returns (CreateUserResponse) {}

@@ -5,5 +5,5 @@ clean:
 	@docker compose down -v --rmi all
 
 re:
-	make clean
+	@docker compose down --rmi all
 	make run
