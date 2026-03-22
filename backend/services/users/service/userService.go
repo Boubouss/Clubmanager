@@ -9,13 +9,15 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService interface {
   CreateUser(context.Context, *models.CreateUserRequest) (*models.CreateUserResponse, error)
+  ReadUser(context.Context, *models.ReadUserRequest) (*models.ReadUserResponse, error)
+  UpdateUser(context.Context, *models.UpdateUserRequest) (*models.UpdateUserResponse, error)
+  DeleteUser(context.Context, string) (bool, error)
 }
 
 type userService struct {
@@ -32,8 +34,7 @@ func (s *userService) CreateUser(ctx context.Context, data *models.CreateUserReq
   // Validate data 
   if errs := data.Validate(); len(errs) > 0 {
     return &models.CreateUserResponse{
-      Id: uuid.UUID{},
-      Username: "",
+      User: models.User{},
       Token: "",
       Errors: errs,
     }, nil
@@ -48,8 +49,7 @@ func (s *userService) CreateUser(ctx context.Context, data *models.CreateUserReq
 
   if len(errs) > 0 {
     return &models.CreateUserResponse{
-      Id: uuid.UUID{},
-      Username: "",
+      User: models.User{},
       Token: "",
       Errors: errs,
     }, nil
@@ -81,9 +81,56 @@ func (s *userService) CreateUser(ctx context.Context, data *models.CreateUserReq
   }
 
   return &models.CreateUserResponse{
-    Id: created.Id,
-    Username: created.Username,
+    User: *created,
     Token: tokenStr,
     Errors: make(map[string]string, 0),
   }, nil
+}
+
+func (s *userService) ReadUser(ctx context.Context, data *models.ReadUserRequest) (*models.ReadUserResponse, error) {
+  // Validate data 
+  if errs := data.Validate(); len(errs) > 0 {
+    return &models.ReadUserResponse{
+      Users: make([]models.User, 0),
+      Errors: errs,
+    }, nil
+  }
+
+  // Fetch users with the repo method
+  users, err := s.repo.ReadUser(ctx, data)
+
+  if err != nil {
+    return nil, err
+  }
+
+  return &models.ReadUserResponse{
+    Users: users,
+    Errors: make(map[string]string, 0),
+  }, nil
+}
+
+func (s *userService) UpdateUser(ctx context.Context, data *models.UpdateUserRequest) (*models.UpdateUserResponse, error) {
+  // Validate data 
+  if errs := data.Validate(); len(errs) > 0 {
+    return &models.UpdateUserResponse{
+      User: models.User{},
+      Errors: errs,
+    }, nil
+  }
+
+  // Update user with repo method
+  updated, err := s.repo.UpdateUser(ctx, data)
+
+  if err != nil {
+    return nil, err
+  }
+
+  return &models.UpdateUserResponse{
+    User: *updated,
+    Errors: make(map[string]string, 0),
+  }, nil
+}
+
+func (s *userService) DeleteUser(ctx context.Context, token string) (bool, error) {
+  return false, nil
 }

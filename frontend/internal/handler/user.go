@@ -78,7 +78,7 @@ func (h *UserHandler) HandleRegisterUser(c *echo.Context) error {
     Expires: time.Now().Add(time.Hour * 24 * 30),
   })
 
-  return render(c, pages.Home(res.Username))
+  return render(c, pages.Home(res.User.Username))
 }
 
 func (h *UserHandler) HandleLoginForm(c *echo.Context) error {

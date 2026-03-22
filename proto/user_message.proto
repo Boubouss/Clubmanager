@@ -4,6 +4,23 @@ package proto;
 
 option go_package = "clubmanager/api/grpc/proto;proto";
 
+message Member {
+  string id = 1;
+  string firstname = 2;
+  string lastname = 3;
+  string birthdate = 4;
+  string gender = 5;
+  string club = 6;
+}
+
+message User {
+  string id = 1;
+  string username = 2;
+  string email = 3;
+  string phonenumber = 4;
+  repeated Member members = 5;
+}
+
 message CreateUserRequest {
   string username = 1;
   string email = 2;
@@ -12,8 +29,36 @@ message CreateUserRequest {
 }
 
 message CreateUserResponse {
+  User user = 1;
+  string token = 2;
+  map<string, string> errors = 3;
+}
+
+message ReadUserRequest {
+  map<string, string> params = 1;
+}
+
+message ReadUserResponse {
+  repeated User users = 1;
+  map<string, string> errors = 2;
+}
+
+message UpdateUserRequest {
   string id = 1;
-  string username = 2;
-  string token = 3;
-  map<string, string> errors = 4;
+  string email = 2;
+  string phonenumber = 3;
+  string password = 4;
+}
+
+message UpdateUserResponse {
+  User user = 1;
+  map<string, string> errors = 2;
+}
+
+message DeleteUserRequest {
+  string token = 1;
+}
+
+message DeleteUserResponse {
+  bool ok = 1;
 }

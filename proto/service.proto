@@ -9,4 +9,7 @@ import "user_message.proto";
 
 service ClubManagerService {
   rpc CreateUser(CreateUserRequest) returns (CreateUserResponse) {}
+  rpc ReadUser(ReadUserRequest) returns (ReadUserResponse) {}
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse) {}
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse) {}
 }

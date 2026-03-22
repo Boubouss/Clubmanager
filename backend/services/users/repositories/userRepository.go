@@ -12,8 +12,11 @@ import (
 )
 
 type UserRepository interface {
-  CreateUser(context.Context, *models.CreateUserRequest) (*models.UserCreated, error)
+  CreateUser(context.Context, *models.CreateUserRequest) (*models.User, error)
   IsUserExist(context.Context, string, string) (map[string]string, error)
+  ReadUser(context.Context, *models.ReadUserRequest) ([]models.User, error)
+  UpdateUser(context.Context, *models.UpdateUserRequest) (*models.User, error)
+  DeleteUser(context.Context, string) (bool, error)
 }
 
 type userRepository struct {
@@ -26,10 +29,12 @@ func NewUserRepository(db *pgx.Conn) *userRepository {
   }
 }
 
-func (r userRepository) CreateUser(ctx context.Context, data *models.CreateUserRequest) (*models.UserCreated, error) {
+func (r userRepository) CreateUser(ctx context.Context, data *models.CreateUserRequest) (*models.User, error) {
   var (
     id uuid.UUID
     username string
+    email string
+    phonenumber string
   )
 
   md, ok := metadata.FromIncomingContext(ctx)
@@ -53,7 +58,7 @@ func (r userRepository) CreateUser(ctx context.Context, data *models.CreateUserR
   rows, err := r.db.Query(ctx, `
     INSERT INTO users (username, email, phonenumber, password) 
     VALUES ($1, $2, $3, $4)
-    RETURNING id, username
+    RETURNING id, username, email, phonenumber
   `, data.Username, data.Email, data.Phonenumber, data.Password)
   
   if err != nil {
@@ -63,12 +68,12 @@ func (r userRepository) CreateUser(ctx context.Context, data *models.CreateUserR
   defer rows.Close()
 
   for rows.Next() {
-    if err := rows.Scan(&id, &username); err != nil {
+    if err := rows.Scan(&id, &username, &email, &phonenumber); err != nil {
       return nil, err
     }   
   }
 
-  return &models.UserCreated{ Id: id, Username: username }, nil
+  return &models.User{ Id: id, Username: username, Email: email, Phonenumber: phonenumber }, nil
 }
 
 func (r userRepository) IsUserExist(ctx context.Context, email, username string) (map[string]string, error) {
@@ -102,4 +107,18 @@ func (r userRepository) IsUserExist(ctx context.Context, email, username string)
   }
 
   return errs, nil
+}
+
+func (r userRepository) ReadUser(ctx context.Context, data *models.ReadUserRequest) ([]models.User, error) {
+
+  return nil, nil
+}
+
+func (r userRepository) UpdateUser(ctx context.Context, data *models.UpdateUserRequest) (*models.User, error) {
+  return nil, nil
+}
+
+
+func (r userRepository) DeleteUser(ctx context.Context, id string) (bool, error) {
+  return false, nil
 }
