@@ -4,7 +4,7 @@ import (
 	"clubmanager/api/grpc/proto"
 	"clubmanager/logging"
 
-	userService "clubmanager/services/users/service"
+	userService "clubmanager/services/users"
 
 	"net"
 

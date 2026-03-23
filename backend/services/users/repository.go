@@ -1,7 +1,6 @@
-package repositories
+package users
 
 import (
-	"clubmanager/services/users/models"
 	dbutils "clubmanager/utils/db"
 	"context"
 
@@ -9,10 +8,10 @@ import (
 )
 
 type UserRepository interface {
-  CreateUser(context.Context, *models.CreateUserRequest) (*models.User, error)
+  CreateUser(context.Context, *CreateUserRequest) (*User, error)
   IsUserExist(context.Context, string, string) (map[string]string, error)
-  ReadUser(context.Context, *models.ReadUserRequest) ([]models.User, error)
-  UpdateUser(context.Context, *models.UpdateUserRequest) (*models.User, error)
+  ReadUser(context.Context, *ReadUserRequest) ([]User, error)
+  UpdateUser(context.Context, *UpdateUserRequest) (*User, error)
   DeleteUser(context.Context, string) (bool, error)
 }
 
@@ -26,7 +25,7 @@ func NewUserRepository(db *pgx.Conn) *userRepository {
   }
 }
 
-func (r userRepository) CreateUser(ctx context.Context, data *models.CreateUserRequest) (*models.User, error) {
+func (r userRepository) CreateUser(ctx context.Context, data *CreateUserRequest) (*User, error) {
   if err := dbutils.SetMetadataLog(r.db, ctx, "NULL"); err != nil {
     return nil, err
   }
@@ -37,7 +36,7 @@ func (r userRepository) CreateUser(ctx context.Context, data *models.CreateUserR
     RETURNING id, username, email, phonenumber
   `, data.Username, data.Email, data.Phonenumber, data.Password)
   
-  var user models.User  
+  var user User  
   if err := row.Scan(&user.Id, &user.Username, &user.Email, &user.Phonenumber); err != nil {
     return nil, err
   }   
@@ -78,12 +77,12 @@ func (r userRepository) IsUserExist(ctx context.Context, email, username string)
   return errs, nil
 }
 
-func (r userRepository) ReadUser(ctx context.Context, data *models.ReadUserRequest) ([]models.User, error) {
+func (r userRepository) ReadUser(ctx context.Context, data *ReadUserRequest) ([]User, error) {
 
   return nil, nil
 }
 
-func (r userRepository) UpdateUser(ctx context.Context, data *models.UpdateUserRequest) (*models.User, error) {
+func (r userRepository) UpdateUser(ctx context.Context, data *UpdateUserRequest) (*User, error) {
   if err := dbutils.SetMetadataLog(r.db, ctx, data.Id); err != nil {
     return nil, err
   }
@@ -94,7 +93,7 @@ func (r userRepository) UpdateUser(ctx context.Context, data *models.UpdateUserR
 
   row := r.db.QueryRow(ctx, query, args...)
 
-  var user models.User
+  var user User
   if err := row.Scan(&user.Id, &user.Username, &user.Email, &user.Phonenumber); err != nil {
     return nil, err
   }

@@ -1,9 +1,6 @@
-package service
+package users
 
 import (
-	"clubmanager/services/users/models"
-	"clubmanager/services/users/repositories"
-
 	"context"
 	"os"
 	"time"
@@ -14,27 +11,27 @@ import (
 )
 
 type UserService interface {
-  CreateUser(context.Context, *models.CreateUserRequest) (*models.CreateUserResponse, error)
-  ReadUser(context.Context, *models.ReadUserRequest) (*models.ReadUserResponse, error)
-  UpdateUser(context.Context, *models.UpdateUserRequest) (*models.UpdateUserResponse, error)
+  CreateUser(context.Context, *CreateUserRequest) (*CreateUserResponse, error)
+  ReadUser(context.Context, *ReadUserRequest) (*ReadUserResponse, error)
+  UpdateUser(context.Context, *UpdateUserRequest) (*UpdateUserResponse, error)
   DeleteUser(context.Context, string) (bool, error)
 }
 
 type userService struct {
-  repo repositories.UserRepository
+  repo UserRepository
 }
 
 func NewUserService(db *pgx.Conn) *userService {
   return &userService{
-    repo: repositories.NewUserRepository(db),
+    repo: NewUserRepository(db),
   }
 }
 
-func (s *userService) CreateUser(ctx context.Context, data *models.CreateUserRequest) (*models.CreateUserResponse, error) {
+func (s *userService) CreateUser(ctx context.Context, data *CreateUserRequest) (*CreateUserResponse, error) {
   // Validate data 
   if errs := data.Validate(); len(errs) > 0 {
-    return &models.CreateUserResponse{
-      User: models.User{},
+    return &CreateUserResponse{
+      User: User{},
       Token: "",
       Errors: errs,
     }, nil
@@ -48,8 +45,8 @@ func (s *userService) CreateUser(ctx context.Context, data *models.CreateUserReq
   }
 
   if len(errs) > 0 {
-    return &models.CreateUserResponse{
-      User: models.User{},
+    return &CreateUserResponse{
+      User: User{},
       Token: "",
       Errors: errs,
     }, nil
@@ -80,18 +77,18 @@ func (s *userService) CreateUser(ctx context.Context, data *models.CreateUserReq
     return nil, err
   }
 
-  return &models.CreateUserResponse{
+  return &CreateUserResponse{
     User: *created,
     Token: tokenStr,
     Errors: make(map[string]string, 0),
   }, nil
 }
 
-func (s *userService) ReadUser(ctx context.Context, data *models.ReadUserRequest) (*models.ReadUserResponse, error) {
+func (s *userService) ReadUser(ctx context.Context, data *ReadUserRequest) (*ReadUserResponse, error) {
   // Validate data 
   if errs := data.Validate(); len(errs) > 0 {
-    return &models.ReadUserResponse{
-      Users: make([]models.User, 0),
+    return &ReadUserResponse{
+      Users: make([]User, 0),
       Errors: errs,
     }, nil
   }
@@ -103,17 +100,17 @@ func (s *userService) ReadUser(ctx context.Context, data *models.ReadUserRequest
     return nil, err
   }
 
-  return &models.ReadUserResponse{
+  return &ReadUserResponse{
     Users: users,
     Errors: make(map[string]string, 0),
   }, nil
 }
 
-func (s *userService) UpdateUser(ctx context.Context, data *models.UpdateUserRequest) (*models.UpdateUserResponse, error) {
+func (s *userService) UpdateUser(ctx context.Context, data *UpdateUserRequest) (*UpdateUserResponse, error) {
   // Validate data 
   if errs := data.Validate(); len(errs) > 0 {
-    return &models.UpdateUserResponse{
-      User: models.User{},
+    return &UpdateUserResponse{
+      User: User{},
       Errors: errs,
     }, nil
   }
@@ -134,7 +131,7 @@ func (s *userService) UpdateUser(ctx context.Context, data *models.UpdateUserReq
     return nil, err
   }
 
-  return &models.UpdateUserResponse{
+  return &UpdateUserResponse{
     User: *updated,
     Errors: make(map[string]string, 0),
   }, nil

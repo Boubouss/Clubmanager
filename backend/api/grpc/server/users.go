@@ -2,7 +2,7 @@ package server
 
 import (
 	"clubmanager/api/grpc/proto"
-	"clubmanager/services/users/models"
+	models "clubmanager/services/users"
 	"context"
 )
 
