@@ -117,7 +117,16 @@ func (s *userService) UpdateUser(ctx context.Context, data *models.UpdateUserReq
       Errors: errs,
     }, nil
   }
-
+  
+  // Encrypt password if exist
+  if data.Password != "" {
+    hash, err := bcrypt.GenerateFromPassword([]byte(data.Password), bcrypt.DefaultCost)
+    if err != nil {
+      return nil, err
+    }
+    data.Password = string(hash)
+  }
+  
   // Update user with repo method
   updated, err := s.repo.UpdateUser(ctx, data)
 

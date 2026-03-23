@@ -2,13 +2,10 @@ package repositories
 
 import (
 	"clubmanager/services/users/models"
+	dbutils "clubmanager/utils/db"
 	"context"
-	"errors"
-	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"google.golang.org/grpc/metadata"
 )
 
 type UserRepository interface {
@@ -30,50 +27,22 @@ func NewUserRepository(db *pgx.Conn) *userRepository {
 }
 
 func (r userRepository) CreateUser(ctx context.Context, data *models.CreateUserRequest) (*models.User, error) {
-  var (
-    id uuid.UUID
-    username string
-    email string
-    phonenumber string
-  )
-
-  md, ok := metadata.FromIncomingContext(ctx)
-  if !ok {
-    return nil, errors.New("No metadata provided.")
+  if err := dbutils.SetMetadataLog(r.db, ctx, "NULL"); err != nil {
+    return nil, err
   }
 
-  fmt.Println(md.Get("client-ip")[0])
-  fmt.Println(md.Get("user-agent")[0])
-  
-  _, err := r.db.Exec(ctx, fmt.Sprintf(`
-    SET LOCAL current_user_id = '%s';
-    SET LOCAL client_ip = '%s';
-    SET LOCAL user_agent = '%s';
-  `,"NULL", md.Get("client-ip")[0], md.Get("user-agent")[0]))
-
-  if err != nil {
-    return nil, errors.New("Pb with sql logs.")
-  }
-
-  rows, err := r.db.Query(ctx, `
+  row := r.db.QueryRow(ctx, `
     INSERT INTO users (username, email, phonenumber, password) 
     VALUES ($1, $2, $3, $4)
     RETURNING id, username, email, phonenumber
   `, data.Username, data.Email, data.Phonenumber, data.Password)
   
-  if err != nil {
+  var user models.User  
+  if err := row.Scan(&user.Id, &user.Username, &user.Email, &user.Phonenumber); err != nil {
     return nil, err
-  }
+  }   
 
-  defer rows.Close()
-
-  for rows.Next() {
-    if err := rows.Scan(&id, &username, &email, &phonenumber); err != nil {
-      return nil, err
-    }   
-  }
-
-  return &models.User{ Id: id, Username: username, Email: email, Phonenumber: phonenumber }, nil
+  return &user, nil
 }
 
 func (r userRepository) IsUserExist(ctx context.Context, email, username string) (map[string]string, error) {
@@ -115,10 +84,38 @@ func (r userRepository) ReadUser(ctx context.Context, data *models.ReadUserReque
 }
 
 func (r userRepository) UpdateUser(ctx context.Context, data *models.UpdateUserRequest) (*models.User, error) {
-  return nil, nil
+  if err := dbutils.SetMetadataLog(r.db, ctx, data.Id); err != nil {
+    return nil, err
+  }
+  
+  query, args := dbutils.GenerateUpdateQuery("users", data.Map())
+
+  query += " RETURNING id, username, email, phonenumber"
+
+  row := r.db.QueryRow(ctx, query, args...)
+
+  var user models.User
+  if err := row.Scan(&user.Id, &user.Username, &user.Email, &user.Phonenumber); err != nil {
+    return nil, err
+  }
+
+  return &user, nil
 }
 
 
 func (r userRepository) DeleteUser(ctx context.Context, id string) (bool, error) {
-  return false, nil
+  
+  if err := dbutils.SetMetadataLog(r.db, ctx, id); err != nil {
+    return false, err
+  }
+
+  _, err := r.db.Exec(ctx, `
+    DELETE FROM users WHERE id = $1
+  `, id)
+
+  if err != nil {
+    return false, err 
+  }
+
+  return true, nil
 }
