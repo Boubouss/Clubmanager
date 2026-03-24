@@ -1,11 +1,11 @@
 package server
 
 import (
-	"clubmanager/services/users"
-	"clubmanager/api/grpc/proto"
+	"clubmanager/internal/domain/users"
+	"clubmanager/internal/adapters/api/grpc/proto"
 )
 
-func MemberProto(m *users.Member) (*proto.Member) {
+func memberProto(m *users.Member) (*proto.Member) {
   return &proto.Member{
     Id: m.Id.String(),
     Firstname: m.Fristname,
@@ -16,34 +16,32 @@ func MemberProto(m *users.Member) (*proto.Member) {
   }
 }
 
-func ArrayMemberProto(arr []users.Member) ([]*proto.Member) {
+func arrayMemberProto(arr []users.Member) ([]*proto.Member) {
   var members []*proto.Member
 
   for _, m := range arr {
-    members = append(members, MemberProto(&m))
+    members = append(members, memberProto(&m))
   }
 
   return members
 }
 
-func UserProto(u *users.User) (*proto.User) {
+func userProto(u *users.User) (*proto.User) {
   return &proto.User{
     Id: u.Id.String(),
     Username: u.Username,
     Email: u.Email,
     Phonenumber: u.Phonenumber,
-    Members: ArrayMemberProto(u.Members),
+    Members: arrayMemberProto(u.Members),
   }
 }
 
-func ArrayUserProto(arr []users.User) ([]*proto.User) {
+func arrayUserProto(arr []users.User) ([]*proto.User) {
   var users []*proto.User
 
   for _, u := range arr {
-    users = append(users, UserProto(&u))
+    users = append(users, userProto(&u))
   }
 
   return users
 }
-
-

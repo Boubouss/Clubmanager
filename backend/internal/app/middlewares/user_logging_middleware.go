@@ -1,23 +1,24 @@
-package logging
+package middlewares
 
 import (
-	u "clubmanager/services/users"
+	"clubmanager/internal/adapters/api/grpc/dto"
+	"clubmanager/internal/app/services"
 	"context"
 	"fmt"
 	"time"
 )
 
 type userLoggingService struct {
-  next u.UserService
+  next services.UserService
 } 
 
-func NewUserLoggingService(next u.UserService) u.UserService {
+func NewUserLoggingService(next services.UserService) services.UserService {
   return &userLoggingService{
     next: next,
   }
 }
 
-func (s *userLoggingService) CreateUser(ctx context.Context, data *u.CreateUserRequest) (user *u.CreateUserResponse, err error) {
+func (s *userLoggingService) CreateUser(ctx context.Context, data *dto.CreateUserRequest) (user *dto.CreateUserResponse, err error) {
   defer func(begin time.Time){
     fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "CreateUser", time.Since(begin), err)
   }(time.Now())
@@ -25,7 +26,7 @@ func (s *userLoggingService) CreateUser(ctx context.Context, data *u.CreateUserR
   return s.next.CreateUser(ctx, data)
 }
 
-func (s *userLoggingService) ReadUser(ctx context.Context, data *u.ReadUserRequest) (user *u.ReadUserResponse, err error) {
+func (s *userLoggingService) ReadUser(ctx context.Context, data *dto.ReadUserRequest) (user *dto.ReadUserResponse, err error) {
   defer func(begin time.Time){
     fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "ReadUser", time.Since(begin), err)
   }(time.Now())
@@ -33,7 +34,7 @@ func (s *userLoggingService) ReadUser(ctx context.Context, data *u.ReadUserReque
   return s.next.ReadUser(ctx, data)
 }
 
-func (s *userLoggingService) UpdateUser(ctx context.Context, data *u.UpdateUserRequest) (user *u.UpdateUserResponse, err error) {
+func (s *userLoggingService) UpdateUser(ctx context.Context, data *dto.UpdateUserRequest) (user *dto.UpdateUserResponse, err error) {
   defer func(begin time.Time){
     fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "UpdateUser", time.Since(begin), err)
   }(time.Now())

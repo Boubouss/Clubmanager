@@ -1,8 +1,7 @@
 package postgres
 
 import (
-	"clubmanager/services/users"
-	dbutils "clubmanager/utils/db"
+	"clubmanager/internal/domain/users"
 	"context"
 	"errors"
 	"fmt"
@@ -21,8 +20,8 @@ func NewUserRepository(db *pgx.Conn) *userRepository {
   }
 }
 
-func (r userRepository) CreateUser(ctx context.Context, data *users.CreateUserRequest) (*users.User, error) {
-  if err := setMetadataLog(r.db, ctx, "NULL"); err != nil {
+func (r userRepository) CreateUser(ctx context.Context, data map[string]string) (*users.User, error) {
+  if err := setMetadataLog(ctx, r.db, "NULL"); err != nil {
     return nil, err
   }
 
@@ -30,7 +29,7 @@ func (r userRepository) CreateUser(ctx context.Context, data *users.CreateUserRe
     INSERT INTO users (username, email, phonenumber, password) 
     VALUES ($1, $2, $3, $4)
     RETURNING id, username, email, phonenumber
-  `, data.Username, data.Email, data.Phonenumber, data.Password)
+  `, data["username"], data["email"], data["phonenumber"], data["password"])
   
   var user users.User  
   if err := row.Scan(&user.Id, &user.Username, &user.Email, &user.Phonenumber); err != nil {
@@ -73,17 +72,17 @@ func (r userRepository) IsUserExist(ctx context.Context, email, username string)
   return errs, nil
 }
 
-func (r userRepository) ReadUser(ctx context.Context, data *users.ReadUserRequest) ([]users.User, error) {
+func (r userRepository) ReadUser(ctx context.Context) ([]users.User, error) {
 
   return nil, nil
 }
 
-func (r userRepository) UpdateUser(ctx context.Context, data *users.UpdateUserRequest) (*users.User, error) {
-  if err := setMetadataLog(r.db, ctx, data.Id); err != nil {
+func (r userRepository) UpdateUser(ctx context.Context, data map[string]string) (*users.User, error) {
+  if err := setMetadataLog(ctx, r.db, data["id"]); err != nil {
     return nil, err
   }
   
-  query, args := dbutils.GenerateUpdateQuery("users", data.Map())
+  query, args := generateUpdateQuery("users", data)
 
   query += " RETURNING id, username, email, phonenumber"
 
@@ -100,7 +99,7 @@ func (r userRepository) UpdateUser(ctx context.Context, data *users.UpdateUserRe
 
 func (r userRepository) DeleteUser(ctx context.Context, id string) (bool, error) {
   
-  if err := setMetadataLog(r.db, ctx, id); err != nil {
+  if err := setMetadataLog(ctx, r.db, id); err != nil {
     return false, err
   }
 
@@ -115,7 +114,7 @@ func (r userRepository) DeleteUser(ctx context.Context, id string) (bool, error)
   return true, nil
 }
 
-func setMetadataLog(db *pgx.Conn, ctx context.Context, id string) error {
+func setMetadataLog(ctx context.Context, db *pgx.Conn, id string) error {
   md, ok := metadata.FromIncomingContext(ctx)
   if !ok {
     return errors.New("No metadata provided.")

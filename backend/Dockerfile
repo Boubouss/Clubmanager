@@ -7,17 +7,17 @@ RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 WORKDIR /app/src
 
 COPY ./backend . 
-COPY ./proto ./api/grpc/proto
+COPY ./proto ./internal/adapters/api/grpc/proto
 
 RUN go mod download
 
 RUN protoc \
-    --proto_path=api/grpc/proto \
+    --proto_path=internal/adapters/api/grpc/proto \
     --go_opt=paths=source_relative \
-    --go_out=api/grpc/proto \
-    --go-grpc_out=api/grpc/proto \
+    --go_out=internal/adapters/api/grpc/proto \
+    --go-grpc_out=internal/adapters/api/grpc/proto \
     --go-grpc_opt=paths=source_relative \
-    api/grpc/proto/*.proto
+    internal/adapters/api/grpc/proto/*.proto
 
 RUN go build -o /clubmanager /app/src/cmd/main.go
 

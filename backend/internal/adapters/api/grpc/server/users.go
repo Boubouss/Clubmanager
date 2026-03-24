@@ -1,14 +1,14 @@
 package server
 
 import (
-	"clubmanager/api/grpc/proto"
-	models "clubmanager/services/users"
+	"clubmanager/internal/adapters/api/grpc/dto"
+	"clubmanager/internal/adapters/api/grpc/proto"
 	"context"
 )
 
 
 func (s ClubManagerServiceServer) CreateUser(ctx context.Context, req *proto.CreateUserRequest) (*proto.CreateUserResponse, error) {
-  user, err := s.usvc.CreateUser(ctx, &models.CreateUserRequest{
+  user, err := s.usvc.CreateUser(ctx, &dto.CreateUserRequest{
     Username: req.Username,
     Email: req.Email,
     Phonenumber: req.Phonenumber,
@@ -20,14 +20,14 @@ func (s ClubManagerServiceServer) CreateUser(ctx context.Context, req *proto.Cre
   }
 
   return &proto.CreateUserResponse{
-    User: UserProto(&user.User),
+    User: userProto(&user.User),
     Token: user.Token,
     Errors: user.Errors,
   }, nil
 }
 
 func (s ClubManagerServiceServer) ReadUser(ctx context.Context, req *proto.ReadUserRequest) (*proto.ReadUserResponse, error) {
-  users, err := s.usvc.ReadUser(ctx, &models.ReadUserRequest{
+  users, err := s.usvc.ReadUser(ctx, &dto.ReadUserRequest{
     Params: req.Params,
   })
 
@@ -36,14 +36,14 @@ func (s ClubManagerServiceServer) ReadUser(ctx context.Context, req *proto.ReadU
   }
 
   return &proto.ReadUserResponse{
-    Users: ArrayUserProto(users.Users),
+    Users: arrayUserProto(users.Users),
     Errors: users.Errors,
   }, nil
 }
 
 
 func (s ClubManagerServiceServer) UpdateUser(ctx context.Context, req *proto.UpdateUserRequest) (*proto.UpdateUserResponse, error) {
-  user, err := s.usvc.UpdateUser(ctx, &models.UpdateUserRequest{
+  user, err := s.usvc.UpdateUser(ctx, &dto.UpdateUserRequest{
     Email: req.Email,
     Phonenumber: req.Phonenumber,
     Password: req.Password,
@@ -54,7 +54,7 @@ func (s ClubManagerServiceServer) UpdateUser(ctx context.Context, req *proto.Upd
   }
 
   return &proto.UpdateUserResponse{
-    User: UserProto(&user.User),
+    User: userProto(&user.User),
     Errors: make(map[string]string, 0),
   }, nil
 }

@@ -1,9 +1,9 @@
-package db
+package postgres
 
 import "strconv"
 
 
-func GenerateUpdateQuery(table string, data map[string]string) (string, []any) {
+func generateUpdateQuery(table string, data map[string]string) (string, []any) {
   query := "UPDATE " + table + " SET "
   args := make([]any, 0)
   i := 1
