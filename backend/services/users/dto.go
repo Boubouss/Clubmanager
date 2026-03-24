@@ -104,6 +104,3 @@ func (u UpdateUserRequest) Map() map[string]string {
   return m
 }
 
-func (u UpdateUserRequest) Keys() []string {
-  return []string{"email", "phonenumber"}
-}

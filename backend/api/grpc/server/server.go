@@ -2,22 +2,21 @@ package server
 
 import (
 	"clubmanager/api/grpc/proto"
-	"clubmanager/logging"
-
-	userService "clubmanager/services/users"
+	"clubmanager/services/users"
 
 	"net"
 
-	"github.com/jackc/pgx/v5"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
-  healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
-func MakeServerAndRun(addr string, db *pgx.Conn) error {
-  usvc := logging.NewUserLoggingService(userService.NewUserService(db))
+type Services struct {
+  UserService users.UserService
+}
 
-  clubManagerServer := NewClubManagerServiceServer(usvc)
+func MakeServerAndRun(addr string, svc *Services) error {
+  clubManagerServer := NewClubManagerServiceServer(svc)
 
   ln, err := net.Listen("tcp", addr)
   if err != nil {
@@ -37,13 +36,13 @@ func MakeServerAndRun(addr string, db *pgx.Conn) error {
 }
 
 type ClubManagerServiceServer struct {
-  usvc userService.UserService
+  usvc users.UserService
   proto.UnimplementedClubManagerServiceServer
 }
 
-func NewClubManagerServiceServer(usvc userService.UserService) *ClubManagerServiceServer {
+func NewClubManagerServiceServer(svc *Services) *ClubManagerServiceServer {
   return &ClubManagerServiceServer{
-    usvc: usvc,
+    usvc: svc.UserService,
   }
 }
 

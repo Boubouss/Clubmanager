@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/jackc/pgx/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -21,9 +20,9 @@ type userService struct {
   repo UserRepository
 }
 
-func NewUserService(db *pgx.Conn) *userService {
+func NewUserService(repo UserRepository) *userService {
   return &userService{
-    repo: NewUserRepository(db),
+    repo: repo,
   }
 }
 

@@ -2,6 +2,9 @@ package main
 
 import (
 	"clubmanager/api/grpc/server"
+	"clubmanager/db/postgres"
+	"clubmanager/logging"
+	"clubmanager/services/users"
 	"context"
 	"flag"
 	"fmt"
@@ -9,7 +12,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 )
-
 
 func main() {
   port := flag.String("port", ":50051", "gRPC port for user service")
@@ -26,7 +28,11 @@ func main() {
   }
 
   fmt.Println("Start server...")
-  if err := server.MakeServerAndRun(*port, db); err != nil {
+  svc := &server.Services{
+    UserService: logging.NewUserLoggingService(users.NewUserService(postgres.NewUserRepository(db))),
+  }
+
+  if err := server.MakeServerAndRun(*port, svc); err != nil {
     fmt.Println("Server failed to start")
   }
 

@@ -20,7 +20,7 @@ func (s ClubManagerServiceServer) CreateUser(ctx context.Context, req *proto.Cre
   }
 
   return &proto.CreateUserResponse{
-    User: user.User.Proto(),
+    User: UserProto(&user.User),
     Token: user.Token,
     Errors: user.Errors,
   }, nil
@@ -36,7 +36,7 @@ func (s ClubManagerServiceServer) ReadUser(ctx context.Context, req *proto.ReadU
   }
 
   return &proto.ReadUserResponse{
-    Users: models.ArrayUserProto(users.Users),
+    Users: ArrayUserProto(users.Users),
     Errors: users.Errors,
   }, nil
 }
@@ -54,7 +54,7 @@ func (s ClubManagerServiceServer) UpdateUser(ctx context.Context, req *proto.Upd
   }
 
   return &proto.UpdateUserResponse{
-    User: user.User.Proto(),
+    User: UserProto(&user.User),
     Errors: make(map[string]string, 0),
   }, nil
 }
