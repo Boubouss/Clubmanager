@@ -1,13 +1,11 @@
 package postgres
 
 import (
+	"clubmanager/internal/domain"
 	"clubmanager/internal/domain/users"
 	"context"
-	"errors"
-	"fmt"
 
 	"github.com/jackc/pgx/v5"
-	"google.golang.org/grpc/metadata"
 )
 
 type userRepository struct {
@@ -20,31 +18,65 @@ func NewUserRepository(db *pgx.Conn) *userRepository {
   }
 }
 
-func (r userRepository) CreateUser(ctx context.Context, data map[string]string) (*users.User, error) {
-  if err := setMetadataLog(ctx, r.db, "NULL"); err != nil {
+func (r userRepository) Save(ctx context.Context, u *users.User) (*users.User, error) {
+  if err := setMetadataLog(ctx, r.db, u.Id.String()); err != nil {
     return nil, err
   }
 
+  if u.Id.String() == "" {
+    return r.insert(ctx, u)
+  }
+  return r.update(ctx, u)
+}
+
+func (r userRepository) insert(ctx context.Context, u *users.User) (*users.User, error) {
+  
   row := r.db.QueryRow(ctx, `
     INSERT INTO users (username, email, phonenumber, password) 
     VALUES ($1, $2, $3, $4)
     RETURNING id, username, email, phonenumber
-  `, data["username"], data["email"], data["phonenumber"], data["password"])
+  `, u.Username, u.Email, u.Phonenumber, u.Password)
   
-  var user users.User  
-  if err := row.Scan(&user.Id, &user.Username, &user.Email, &user.Phonenumber); err != nil {
+  if err := row.Scan(&u.Id, &u.Username, &u.Email, &u.Phonenumber); err != nil {
     return nil, err
   }   
 
-  return &user, nil
+  return u, nil
 }
 
-func (r userRepository) IsUserExist(ctx context.Context, email, username string) (map[string]string, error) {
-  errs := make(map[string]string, 2)
+func (r userRepository) update(ctx context.Context, u *users.User) (*users.User, error) {
 
-  rows, err := r.db.Query(ctx, `
-    SELECT email, username FROM users WHERE email = $1 OR username = $2
-  `, email, username)
+  _, err := r.db.Exec(ctx, `
+    UPDATE users SET email = '$1', phonenumber = '$2', password = '$3'
+    WHERE id = '$4'
+  `, u.Email, u.Phonenumber, u.Password, u.Id.String())
+
+  if err != nil {
+    return nil, err
+  }
+
+  return u, nil
+}
+
+func (r userRepository) Find(ctx context.Context, id string) (*users.User, error) {
+  row := r.db.QueryRow(ctx, `
+    SELECT id, username, email, phonenumber FROM users
+    WHERE id = '$1'
+  `, id)
+
+  u := users.User{}
+  if err := row.Scan(&u.Id, &u.Username, &u.Email, &u.Phonenumber); err != nil {
+    return nil, err
+  }
+  return &u, nil
+}
+
+func (r userRepository) Search(ctx context.Context, params *domain.SearchParams) ([]*users.User, error) {
+
+  where, args := params.GetWhereClauses()
+  query := "SELECT id, username, email, phonenumber FROM users WHERE " + where
+
+  rows, err := r.db.Query(ctx, query, args...)
 
   if err != nil {
     return nil, err
@@ -52,52 +84,19 @@ func (r userRepository) IsUserExist(ctx context.Context, email, username string)
 
   defer rows.Close()
 
+  var list []*users.User
   for rows.Next() {
-    var e string
-    var u string
-
-    if err := rows.Scan(&e, &u); err != nil {
+    u := users.User{}
+    if err := rows.Scan(&u.Id, &u.Username, &u.Email, &u.Phonenumber); err != nil {
       return nil, err
     }
-    
-    if email == e {
-      errs["email"] = "Email already exist."
-    } 
-
-    if username == u {
-      errs["username"] = "Username already exist."
-    }
+    list = append(list, &u)
   }
 
-  return errs, nil
+  return list, nil
 }
 
-func (r userRepository) ReadUser(ctx context.Context) ([]users.User, error) {
-
-  return nil, nil
-}
-
-func (r userRepository) UpdateUser(ctx context.Context, data map[string]string) (*users.User, error) {
-  if err := setMetadataLog(ctx, r.db, data["id"]); err != nil {
-    return nil, err
-  }
-  
-  query, args := generateUpdateQuery("users", data)
-
-  query += " RETURNING id, username, email, phonenumber"
-
-  row := r.db.QueryRow(ctx, query, args...)
-
-  var user users.User
-  if err := row.Scan(&user.Id, &user.Username, &user.Email, &user.Phonenumber); err != nil {
-    return nil, err
-  }
-
-  return &user, nil
-}
-
-
-func (r userRepository) DeleteUser(ctx context.Context, id string) (bool, error) {
+func (r userRepository) Delete(ctx context.Context, id string) (bool, error) {
   
   if err := setMetadataLog(ctx, r.db, id); err != nil {
     return false, err
@@ -114,22 +113,4 @@ func (r userRepository) DeleteUser(ctx context.Context, id string) (bool, error)
   return true, nil
 }
 
-func setMetadataLog(ctx context.Context, db *pgx.Conn, id string) error {
-  md, ok := metadata.FromIncomingContext(ctx)
-  if !ok {
-    return errors.New("No metadata provided.")
-  }
-  
-  _, err := db.Exec(ctx, fmt.Sprintf(`
-    SET LOCAL current_user_id = '%s';
-    SET LOCAL client_ip = '%s';
-    SET LOCAL user_agent = '%s';
-  `, id, md.Get("client-ip")[0], md.Get("user-agent")[0]))
-
-  if err != nil {
-    return errors.New("Pb with sql logs.")
-  }
-
-  return nil
-}
 

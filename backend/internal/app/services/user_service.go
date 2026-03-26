@@ -2,6 +2,7 @@ package services
 
 import (
 	"clubmanager/internal/adapters/api/grpc/dto"
+	"clubmanager/internal/domain"
 	"clubmanager/internal/domain/users"
 	"context"
 )
@@ -14,13 +15,13 @@ type UserService interface {
 }
 
 type UserServiceConfig struct {
-  Repository      users.UserRepository
+  Repository      domain.Repository[users.User, string]
   Hasher          users.PasswordHasher
   TokenManager    TokenManager
 }
 
 type userService struct {
-  repo    users.UserRepository
+  repo    domain.Repository[users.User, string]
   hasher  users.PasswordHasher
   tkm     TokenManager
 }
@@ -34,41 +35,55 @@ func NewUserService(config UserServiceConfig) *userService {
 }
 
 func (s *userService) CreateUser(ctx context.Context, data *dto.CreateUserRequest) (*dto.CreateUserResponse, error) {
-  d := data.Map()
+  u, errs := users.NewUser(data.Map())
 
   // Validate data 
-  if _, errs := users.NewUser(d); len(errs) > 0 {
+  if len(errs) > 0 {
     return &dto.CreateUserResponse{
-      User: users.User{},
+      User: nil,
       Token: "",
       Errors: errs,
     }, nil
   }
 
   // Check if the user already exist
-  errs, err := s.repo.IsUserExist(ctx, data.Email, data.Username)
+  list, err := s.repo.Search(ctx, &domain.SearchParams{
+    Fields: map[string]any{"email": u.Email, "username": u.Username},
+    Connector: "OR",
+  })
 
   if err != nil {
     return nil, err
   }
 
-  if len(errs) > 0 {
+  if len(list) > 0 {
+    errs := make(map[string]string, 2)
+    for _, v := range list {
+      if u.Email == v.Email {
+        errs["email"] = "Email already exist."
+      }
+
+      if u.Username == v.Username {
+        errs["username"] = "Username already exist."
+      }
+    }
+
     return &dto.CreateUserResponse{
-      User: users.User{},
+      User: nil,
       Token: "",
       Errors: errs,
     }, nil
   }
   
   // Encrypt password
-  hash, err :=  s.hasher.Hash(data.Password)
+  hash, err :=  s.hasher.Hash(u.Password)
   if err != nil {
     return nil, err
   }
-  data.Password = hash
-  
+  u.Password = hash
+
   // Store data with the repo method
-  created, err := s.repo.CreateUser(ctx, d)
+  created, err := s.repo.Save(ctx, u)
   if err != nil {
     return nil, err
   }
@@ -80,7 +95,7 @@ func (s *userService) CreateUser(ctx context.Context, data *dto.CreateUserReques
   }
 
   return &dto.CreateUserResponse{
-    User: *created,
+    User: created,
     Token: token,
     Errors: make(map[string]string, 0),
   }, nil
@@ -96,7 +111,10 @@ func (s *userService) ReadUser(ctx context.Context, data *dto.ReadUserRequest) (
   // }
 
   // Fetch users with the repo method
-  list, err := s.repo.ReadUser(ctx)
+  list, err := s.repo.Search(ctx, &domain.SearchParams{
+    Fields: data.Params,
+    Connector: "AND",
+  })
 
   if err != nil {
     return nil, err
@@ -109,34 +127,41 @@ func (s *userService) ReadUser(ctx context.Context, data *dto.ReadUserRequest) (
 }
 
 func (s *userService) UpdateUser(ctx context.Context, data *dto.UpdateUserRequest) (*dto.UpdateUserResponse, error) {
+  current, err := s.repo.Find(ctx, data.Id)
   d := data.Map()
 
+  if err != nil {
+    return nil, err
+  }
+
+  u, errs := current.Update(d)
+  
   // Validate data 
-  if _, errs := users.NewUser(d); len(errs) > 0 {
+  if len(errs) > 0 {
     return &dto.UpdateUserResponse{
-      User: users.User{},
+      User: nil,
       Errors: errs,
     }, nil
   }
   
   // Encrypt password if exist
-  if data.Password != "" {
-    hash, err := s.hasher.Hash(data.Password)
+  if _, ok := d["password"]; ok {
+    hash, err := s.hasher.Hash(u.Password)
     if err != nil {
       return nil, err
     }
-    data.Password = hash
+    u.Password = hash
   }
   
   // Update user with repo method
-  updated, err := s.repo.UpdateUser(ctx, d)
+  updated, err := s.repo.Save(ctx, u)
 
   if err != nil {
     return nil, err
   }
 
   return &dto.UpdateUserResponse{
-    User: *updated,
+    User: updated,
     Errors: make(map[string]string, 0),
   }, nil
 }

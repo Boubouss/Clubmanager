@@ -16,11 +16,11 @@ func memberProto(m *users.Member) (*proto.Member) {
   }
 }
 
-func arrayMemberProto(arr []users.Member) ([]*proto.Member) {
+func arrayMemberProto(arr []*users.Member) ([]*proto.Member) {
   var members []*proto.Member
 
   for _, m := range arr {
-    members = append(members, memberProto(&m))
+    members = append(members, memberProto(m))
   }
 
   return members
@@ -36,11 +36,11 @@ func userProto(u *users.User) (*proto.User) {
   }
 }
 
-func arrayUserProto(arr []users.User) ([]*proto.User) {
+func arrayUserProto(arr []*users.User) ([]*proto.User) {
   var users []*proto.User
 
   for _, u := range arr {
-    users = append(users, userProto(&u))
+    users = append(users, userProto(u))
   }
 
   return users

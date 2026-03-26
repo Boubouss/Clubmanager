@@ -20,15 +20,20 @@ func (s ClubManagerServiceServer) CreateUser(ctx context.Context, req *proto.Cre
   }
 
   return &proto.CreateUserResponse{
-    User: userProto(&user.User),
+    User: userProto(user.User),
     Token: user.Token,
     Errors: user.Errors,
   }, nil
 }
 
 func (s ClubManagerServiceServer) ReadUser(ctx context.Context, req *proto.ReadUserRequest) (*proto.ReadUserResponse, error) {
+  params := make(map[string]any, len(req.Params))
+  for k, v := range req.Params {
+    params[k] = v
+  }
+
   users, err := s.usvc.ReadUser(ctx, &dto.ReadUserRequest{
-    Params: req.Params,
+    Params: params,
   })
 
   if err != nil {
@@ -54,7 +59,7 @@ func (s ClubManagerServiceServer) UpdateUser(ctx context.Context, req *proto.Upd
   }
 
   return &proto.UpdateUserResponse{
-    User: userProto(&user.User),
+    User: userProto(user.User),
     Errors: make(map[string]string, 0),
   }, nil
 }

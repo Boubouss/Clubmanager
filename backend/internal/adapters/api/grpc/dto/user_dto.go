@@ -11,7 +11,7 @@ type CreateUserRequest struct {
 }
 
 type CreateUserResponse struct {
-  User u.User
+  User *u.User
   Token string
   Errors map[string]string
 }
@@ -39,11 +39,11 @@ func (u CreateUserRequest) Map() map[string]string {
 }
 
 type ReadUserRequest struct {
-  Params map[string]string
+  Params map[string]any
 }
 
 type ReadUserResponse struct {
-  Users  []u.User
+  Users  []*u.User
   Errors map[string]string
 }
 
@@ -55,7 +55,7 @@ type UpdateUserRequest struct {
 }
 
 type UpdateUserResponse struct {
-  User u.User
+  User *u.User
   Errors map[string]string
 }
 

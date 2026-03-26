@@ -1,29 +1,25 @@
 package postgres
 
-import "strconv"
+import (
+	"context"
+	"errors"
+	"fmt"
 
+	"github.com/jackc/pgx/v5"
+)
 
-func generateUpdateQuery(table string, data map[string]string) (string, []any) {
-  query := "UPDATE " + table + " SET "
-  args := make([]any, 0)
-  i := 1
-  id := data["id"]
-  delete(data, "id")
+func setMetadataLog(ctx context.Context, db *pgx.Conn, id string) error {
+   
+  _, err := db.Exec(ctx, fmt.Sprintf(`
+    SET LOCAL current_user_id = '%s';
+    SET LOCAL client_ip = '%s';
+    SET LOCAL user_agent = '%s';
+  `, id, ctx.Value("client_ip"), ctx.Value("user_agent")))
 
-  for k, v := range data {
-    args = append(args, v)
-    query += k 
-    query += " = $"
-    query += strconv.Itoa(i)
-    i++
-    if i < len(data) {
-      query += ", "
-    } 
+  if err != nil {
+    return errors.New("Pb with sql logs.")
   }
 
-  query += " WHERE id = $"
-  query += strconv.Itoa(i)
-  args = append(args, id)
-
-  return query, args
+  return nil
 }
+
