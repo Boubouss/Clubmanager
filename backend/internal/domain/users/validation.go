@@ -6,9 +6,9 @@ import (
 )
 
 var (
-  emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-  phoneRegex = regexp.MustCompile(`^(\+33|0)[1-9](\d{2}){4}$`)
-  usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{3,20}$`)
+  emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`).MatchString
+  phoneRegex = regexp.MustCompile(`^0[1-9]\d{8}$`).MatchString
+  usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{3,20}$`).MatchString
   hasUpper     = regexp.MustCompile(`[A-Z]`).MatchString         
 	hasLower     = regexp.MustCompile(`[a-z]`).MatchString         
 	hasDigit     = regexp.MustCompile(`[0-9]`).MatchString         
@@ -17,7 +17,7 @@ var (
 
 
 func IsEmail(email string) (bool, string) {
-  if !emailRegex.MatchString(email) {
+  if !emailRegex(email) {
     return false, "Invalid email."
   }
   return true, ""
@@ -37,7 +37,7 @@ func IsLengthBetween(s string, mini, maxi int) (bool, string) {
 }
 
 func IsPhoneNumber(phone string) (bool, string) {
-  if !phoneRegex.MatchString(phone) {
+  if !phoneRegex(phone) {
     return false, "Invalid phonenumber."
   }
   return true, ""
@@ -63,7 +63,7 @@ func IsValidUsername(username string) (bool, string) {
   }
 
 
-  if !usernameRegex.MatchString(username) {
+  if !usernameRegex(username) {
     return false, "Invalid username."
   }
 
