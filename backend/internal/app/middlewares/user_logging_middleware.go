@@ -42,6 +42,14 @@ func (s *userLoggingService) UpdateUser(ctx context.Context, data *dto.UpdateUse
   return s.next.UpdateUser(ctx, data)
 }
 
+func (s *userLoggingService) LoginUser(ctx context.Context, data *dto.LoginUserRequest) (user *dto.LoginUserResponse, err error) {
+  defer func(begin time.Time){
+    fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "LoginUser", time.Since(begin), err)
+  }(time.Now())
+
+  return s.next.LoginUser(ctx, data)
+}
+
 func (s *userLoggingService) DeleteUser(ctx context.Context, token string) (res bool, err error) {
   defer func(begin time.Time){
     fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "DeleteUser", time.Since(begin), err)

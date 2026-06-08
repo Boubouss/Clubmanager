@@ -23,6 +23,30 @@ BEFORE UPDATE ON roles
 FOR EACH ROW 
 EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS trigger_licences_updated_at ON licences;
+CREATE TRIGGER trigger_licences_updated_at
+BEFORE UPDATE ON licences
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at();
+
+DROP TRIGGER IF EXISTS trigger_log_licences ON licences;
+CREATE TRIGGER trigger_log_licences
+AFTER INSERT OR UPDATE OR DELETE ON licences
+FOR EACH ROW
+EXECUTE FUNCTION log_changes();
+
+DROP TRIGGER IF EXISTS trigger_events_updated_at ON events;
+CREATE TRIGGER trigger_events_updated_at
+BEFORE UPDATE ON events
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at();
+
+DROP TRIGGER IF EXISTS trigger_log_events ON events;
+CREATE TRIGGER trigger_log_events
+AFTER INSERT OR UPDATE OR DELETE ON events
+FOR EACH ROW
+EXECUTE FUNCTION log_changes();
+
 DROP TRIGGER IF EXISTS trigger_log_users ON users;
 DROP TRIGGER IF EXISTS trigger_log_members ON members;
 DROP TRIGGER IF EXISTS trigger_log_clubs ON clubs;

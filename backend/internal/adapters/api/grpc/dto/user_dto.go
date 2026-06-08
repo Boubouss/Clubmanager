@@ -28,7 +28,7 @@ func (u CreateUserRequest) Map() map[string]string {
   }
 
   if u.Phonenumber != "" {
-    m["phonumber"] = u.Phonenumber
+    m["phonenumber"] = u.Phonenumber
   }
 
   if u.Password != "" {
@@ -36,6 +36,17 @@ func (u CreateUserRequest) Map() map[string]string {
   }
 
   return m
+}
+
+type LoginUserRequest struct {
+  Email    string
+  Password string
+}
+
+type LoginUserResponse struct {
+  User   *u.User
+  Token  string
+  Errors map[string]string
 }
 
 type ReadUserRequest struct {
@@ -71,7 +82,7 @@ func (u UpdateUserRequest) Map() map[string]string {
   }
 
   if u.Phonenumber != "" {
-    m["phonumber"] = u.Phonenumber
+    m["phonenumber"] = u.Phonenumber
   }
 
   if u.Password != "" {

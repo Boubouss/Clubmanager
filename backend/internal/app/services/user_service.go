@@ -9,6 +9,7 @@ import (
 
 type UserService interface {
   CreateUser(context.Context, *dto.CreateUserRequest) (*dto.CreateUserResponse, error)
+  LoginUser(context.Context, *dto.LoginUserRequest) (*dto.LoginUserResponse, error)
   ReadUser(context.Context, *dto.ReadUserRequest) (*dto.ReadUserResponse, error)
   UpdateUser(context.Context, *dto.UpdateUserRequest) (*dto.UpdateUserResponse, error)
   DeleteUser(context.Context, string) (bool, error)
@@ -48,7 +49,8 @@ func (s *userService) CreateUser(ctx context.Context, data *dto.CreateUserReques
 
   // Check if the user already exist
   list, err := s.repo.Search(ctx, &domain.SearchParams{
-    Fields: map[string]any{"email": u.Email, "username": u.Username},
+    Fields:    map[string]any{"email": u.Email, "username": u.Username},
+    Keys:      map[string]bool{"email": true, "username": true},
     Connector: "OR",
   })
 
@@ -101,6 +103,44 @@ func (s *userService) CreateUser(ctx context.Context, data *dto.CreateUserReques
   }, nil
 }
 
+func (s *userService) LoginUser(ctx context.Context, data *dto.LoginUserRequest) (*dto.LoginUserResponse, error) {
+  list, err := s.repo.Search(ctx, &domain.SearchParams{
+    Fields:    map[string]any{"email": data.Email},
+    Keys:      map[string]bool{"email": true},
+    Connector: "AND",
+  })
+
+  if err != nil {
+    return nil, err
+  }
+
+  if len(list) == 0 {
+    return &dto.LoginUserResponse{
+      Errors: map[string]string{"email": "Aucun compte associé à cet email."},
+    }, nil
+  }
+
+  u := list[0]
+
+  if err := s.hasher.Compare(data.Password, u.Password); err != nil {
+    return &dto.LoginUserResponse{
+      Errors: map[string]string{"password": "Mot de passe incorrect."},
+    }, nil
+  }
+
+  token, err := s.tkm.GenerateToken(u.Id.String())
+  if err != nil {
+    return nil, err
+  }
+
+  u.Password = ""
+  return &dto.LoginUserResponse{
+    User:   u,
+    Token:  token,
+    Errors: make(map[string]string),
+  }, nil
+}
+
 func (s *userService) ReadUser(ctx context.Context, data *dto.ReadUserRequest) (*dto.ReadUserResponse, error) {
   // Validate data 
   // if errs := data.Validate(); len(errs) > 0 {
@@ -113,11 +153,16 @@ func (s *userService) ReadUser(ctx context.Context, data *dto.ReadUserRequest) (
   // Fetch users with the repo method
   list, err := s.repo.Search(ctx, &domain.SearchParams{
     Fields: data.Params,
+    Keys: map[string]bool{"username": true, "email": true, "phonenumber": true},
     Connector: "AND",
   })
 
   if err != nil {
     return nil, err
+  }
+
+  for _, u := range list {
+    u.Password = ""
   }
 
   return &dto.ReadUserResponse{
@@ -167,5 +212,10 @@ func (s *userService) UpdateUser(ctx context.Context, data *dto.UpdateUserReques
 }
 
 func (s *userService) DeleteUser(ctx context.Context, token string) (bool, error) {
-  return false, nil
+  userId, err := s.tkm.ParseToken(token)
+  if err != nil {
+    return false, err
+  }
+
+  return s.repo.Delete(ctx, userId)
 }

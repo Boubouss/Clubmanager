@@ -12,6 +12,11 @@ CREATE INDEX idx_clubs_name ON clubs(LOWER(name));
 CREATE INDEX idx_clubs_city ON clubs(LOWER(city));
 CREATE INDEX idx_clubs_postal_code ON clubs(postal_code);
 
+DROP INDEX IF EXISTS idx_licences_member_id;
+DROP INDEX IF EXISTS idx_licences_member_active;
+CREATE INDEX idx_licences_member_id ON licences(member_id);
+CREATE INDEX idx_licences_member_active ON licences(member_id, valid_until) WHERE status = 'active';
+
 DROP INDEX IF EXISTS idx_members_user_id;
 DROP INDEX IF EXISTS idx_members_club_id;
 DROP INDEX IF EXISTS idx_members_user_club;
@@ -30,9 +35,36 @@ CREATE INDEX idx_members_birthdate ON members(birthdate, club_id);
 DROP INDEX IF EXISTS idx_roles_user_id;
 DROP INDEX IF EXISTS idx_roles_club_id;
 DROP INDEX IF EXISTS idx_roles_user_club;
+DROP INDEX IF EXISTS idx_roles_president;
 CREATE INDEX idx_roles_user_id ON roles(user_id);
 CREATE INDEX idx_roles_club_id ON roles(club_id);
 CREATE INDEX idx_roles_user_club ON roles(user_id, club_id);
+CREATE UNIQUE INDEX idx_roles_president ON roles(club_id) WHERE role = 'president';
+
+DROP INDEX IF EXISTS idx_events_club_id;
+DROP INDEX IF EXISTS idx_events_type;
+DROP INDEX IF EXISTS idx_events_status;
+DROP INDEX IF EXISTS idx_events_date;
+CREATE INDEX idx_events_club_id ON events(club_id);
+CREATE INDEX idx_events_type ON events(type);
+CREATE INDEX idx_events_status ON events(status);
+CREATE INDEX idx_events_date ON events(date);
+
+DROP INDEX IF EXISTS idx_event_categories_event_id;
+CREATE INDEX idx_event_categories_event_id ON event_categories(event_id);
+
+DROP INDEX IF EXISTS idx_event_participants_event_id;
+DROP INDEX IF EXISTS idx_event_participants_member_id;
+CREATE INDEX idx_event_participants_event_id ON event_participants(event_id);
+CREATE INDEX idx_event_participants_member_id ON event_participants(member_id);
+
+DROP INDEX IF EXISTS idx_carpool_offers_event_id;
+CREATE INDEX idx_carpool_offers_event_id ON carpool_offers(event_id);
+
+DROP INDEX IF EXISTS idx_carpool_passengers_offer_id;
+DROP INDEX IF EXISTS idx_carpool_passengers_member_id;
+CREATE INDEX idx_carpool_passengers_offer_id ON carpool_passengers(offer_id);
+CREATE INDEX idx_carpool_passengers_member_id ON carpool_passengers(member_id);
 
 DROP INDEX IF EXISTS idx_logs_record_id;
 DROP INDEX IF EXISTS idx_logs_changed_at;

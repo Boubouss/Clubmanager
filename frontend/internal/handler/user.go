@@ -86,5 +86,29 @@ func (h *UserHandler) HandleLoginForm(c *echo.Context) error {
 }
 
 func (h *UserHandler) HandleLoginUser(c *echo.Context) error {
-  return render(c, pages.Home("Red"))
+  md := metadata.New(map[string]string{
+    "client-ip":  c.RealIP(),
+    "user-agent": c.Request().UserAgent(),
+  })
+
+  res, err := h.client.LoginUser(metadata.NewOutgoingContext(c.Request().Context(), md), &proto.LoginUserRequest{
+    Email:    c.FormValue("email"),
+    Password: c.FormValue("password"),
+  })
+
+  if err != nil {
+    return render(c, pages.Connexion())
+  }
+
+  if len(res.Errors) > 0 {
+    return render(c, pages.Connexion())
+  }
+
+  c.SetCookie(&http.Cookie{
+    Name:    "ClubManagerAuth",
+    Value:   res.Token,
+    Expires: time.Now().Add(time.Hour * 24 * 30),
+  })
+
+  return render(c, pages.Home(res.User.Username))
 }

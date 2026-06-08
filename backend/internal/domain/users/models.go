@@ -6,15 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type Member struct {
-  Id uuid.UUID
-  Fristname string
-  Lastname string
-  Birthdate string
-  Gender string
-  Club string
-}
-
 type User struct {
   Id uuid.UUID
   Username string
@@ -22,7 +13,6 @@ type User struct {
   Phonenumber string
   Password string
   IsValid bool
-  Members []*Member
 }
 
 func NewUser(data map[string]string) (*User, map[string]string) {

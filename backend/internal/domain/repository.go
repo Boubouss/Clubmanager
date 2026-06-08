@@ -2,7 +2,10 @@ package domain
 
 import (
 	"context"
+	"fmt"
+	"sort"
 	"strconv"
+	"strings"
 )
 
 type Repository[T any, ID string | int] interface {
@@ -14,22 +17,26 @@ type Repository[T any, ID string | int] interface {
 
 type SearchParams struct {
   Fields map[string]any
+  Keys  map[string]bool
   Connector string
 }
 
-func (s SearchParams) GetWhereClauses() (string, []any) {
-  where := ""
-  args := make([]any, len(s.Fields))
-  i := 1
-  
-  for k, v := range s.Fields {
-    args = append(args, v)
-    where += k + " = $" + strconv.Itoa(i) + " "
-    if i < len(s.Fields) {
-      where += s.Connector + " "
+func (s SearchParams) GetWhereClauses() (string, []any, error) {
+  keys := make([]string, 0, len(s.Fields))
+  for k := range s.Fields {
+    if _, ok := s.Keys[k]; !ok {
+      return "", nil, fmt.Errorf("invalid key in search params: %s", k)
     }
-    i++
+    keys = append(keys, k)
+  }
+  sort.Strings(keys)
+
+  clauses := make([]string, 0, len(keys))
+  args := make([]any, 0, len(keys))
+  for i, k := range keys {
+    clauses = append(clauses, k+" = $"+strconv.Itoa(i+1))
+    args = append(args, s.Fields[k])
   }
 
-  return where, args
+  return strings.Join(clauses, " "+s.Connector+" "), args, nil
 }

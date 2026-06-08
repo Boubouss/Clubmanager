@@ -12,4 +12,46 @@ service ClubManagerService {
   rpc ReadUser(ReadUserRequest) returns (ReadUserResponse) {}
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse) {}
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse) {}
+  rpc LoginUser(LoginUserRequest) returns (LoginUserResponse) {}
+
+  rpc CreateClub(CreateClubRequest) returns (CreateClubResponse) {}
+  rpc ReadClub(ReadClubRequest) returns (ReadClubResponse) {}
+  rpc UpdateClub(UpdateClubRequest) returns (UpdateClubResponse) {}
+  rpc DeleteClub(DeleteClubRequest) returns (DeleteClubResponse) {}
+
+  rpc AddMember(AddMemberRequest) returns (AddMemberResponse) {}
+  rpc ValidateMember(ValidateMemberRequest) returns (ValidateMemberResponse) {}
+  rpc GetMembersByUser(GetMembersByUserRequest) returns (GetMembersByUserResponse) {}
+  rpc UpdateMember(UpdateMemberRequest) returns (UpdateMemberResponse) {}
+  rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse) {}
+
+  rpc CreateLicence(CreateLicenceRequest) returns (CreateLicenceResponse) {}
+  rpc GetMemberLicences(GetMemberLicencesRequest) returns (GetMemberLicencesResponse) {}
+  rpc UpdateLicenceStatus(UpdateLicenceStatusRequest) returns (UpdateLicenceStatusResponse) {}
+
+  rpc AssignRole(AssignRoleRequest) returns (AssignRoleResponse) {}
+  rpc RemoveRole(RemoveRoleRequest) returns (RemoveRoleResponse) {}
+  rpc GetClubRoles(GetClubRolesRequest) returns (GetClubRolesResponse) {}
+  rpc GetUserRoles(GetUserRolesRequest) returns (GetUserRolesResponse) {}
+
+  rpc CreateEvent(CreateEventRequest) returns (CreateEventResponse) {}
+  rpc GetEvent(GetEventRequest) returns (GetEventResponse) {}
+  rpc ListClubEvents(ListClubEventsRequest) returns (ListClubEventsResponse) {}
+  rpc UpdateEvent(UpdateEventRequest) returns (UpdateEventResponse) {}
+  rpc CancelEvent(CancelEventRequest) returns (CancelEventResponse) {}
+  rpc OpenEvent(OpenEventRequest) returns (OpenEventResponse) {}
+
+  rpc RegisterParticipant(RegisterParticipantRequest) returns (RegisterParticipantResponse) {}
+  rpc UnregisterParticipant(UnregisterParticipantRequest) returns (UnregisterParticipantResponse) {}
+  rpc GetParticipants(GetParticipantsRequest) returns (GetParticipantsResponse) {}
+  rpc ExportParticipants(ExportParticipantsRequest) returns (ExportParticipantsResponse) {}
+  rpc UpdateCategoryStatus(UpdateCategoryStatusRequest) returns (UpdateCategoryStatusResponse) {}
+
+  rpc CreateCarpoolOffer(CreateCarpoolOfferRequest) returns (CreateCarpoolOfferResponse) {}
+  rpc JoinCarpoolOffer(JoinCarpoolOfferRequest) returns (JoinCarpoolOfferResponse) {}
+  rpc LeaveCarpoolOffer(LeaveCarpoolOfferRequest) returns (LeaveCarpoolOfferResponse) {}
+  rpc GetEventCarpools(GetEventCarpoolsRequest) returns (GetEventCarpoolsResponse) {}
+  rpc CancelCarpoolOffer(CancelCarpoolOfferRequest) returns (CancelCarpoolOfferResponse) {}
+
+  rpc ListJudoCategories(ListJudoCategoriesRequest) returns (ListJudoCategoriesResponse) {}
 }

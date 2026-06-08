@@ -49,9 +49,10 @@ func (s ClubManagerServiceServer) ReadUser(ctx context.Context, req *proto.ReadU
 
 func (s ClubManagerServiceServer) UpdateUser(ctx context.Context, req *proto.UpdateUserRequest) (*proto.UpdateUserResponse, error) {
   user, err := s.usvc.UpdateUser(ctx, &dto.UpdateUserRequest{
-    Email: req.Email,
+    Id:          req.Id,
+    Email:       req.Email,
     Phonenumber: req.Phonenumber,
-    Password: req.Password,
+    Password:    req.Password,
   })
 
   if err != nil {
@@ -64,6 +65,28 @@ func (s ClubManagerServiceServer) UpdateUser(ctx context.Context, req *proto.Upd
   }, nil
 }
 
+
+func (s ClubManagerServiceServer) LoginUser(ctx context.Context, req *proto.LoginUserRequest) (*proto.LoginUserResponse, error) {
+  res, err := s.usvc.LoginUser(ctx, &dto.LoginUserRequest{
+    Email:    req.Email,
+    Password: req.Password,
+  })
+
+  if err != nil {
+    return nil, err
+  }
+
+  var user *proto.User
+  if res.User != nil {
+    user = userProto(res.User)
+  }
+
+  return &proto.LoginUserResponse{
+    User:   user,
+    Token:  res.Token,
+    Errors: res.Errors,
+  }, nil
+}
 
 func (s ClubManagerServiceServer) DeleteUser(ctx context.Context, req *proto.DeleteUserRequest) (*proto.DeleteUserResponse, error) {
   ok, err := s.usvc.DeleteUser(ctx, req.Token)

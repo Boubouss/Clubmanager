@@ -1,6 +1,6 @@
-CREATE OR REPLACE FUNCTION update_updated_at() 
+CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
-BEGIN 
+BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
@@ -19,9 +19,9 @@ BEGIN
             NEW.id,
             'INSERT',
             to_jsonb(NEW.*),
-            NULLIF(current_setting('current_user_id'), '')::UUID,
-            NULLIF(current_setting('client_ip'), '')::INET,
-            NULLIF(current_setting('user_agent'), '')::TEXT
+            NULLIF(current_setting('app.current_user_id', true), '')::UUID,
+            NULLIF(current_setting('app.client_ip', true), '')::INET,
+            NULLIF(current_setting('app.user_agent', true), '')::TEXT
         );
     ELSIF TG_OP = 'UPDATE' THEN
         INSERT INTO logs (
@@ -32,9 +32,9 @@ BEGIN
             'UPDATE',
             to_jsonb(OLD.*),
             to_jsonb(NEW.*),
-            NULLIF(current_setting('current_user_id'), '')::UUID,
-            NULLIF(current_setting('client_ip'), '')::INET,
-            NULLIF(current_setting('user_agent'), '')::TEXT
+            NULLIF(current_setting('app.current_user_id', true), '')::UUID,
+            NULLIF(current_setting('app.client_ip', true), '')::INET,
+            NULLIF(current_setting('app.user_agent', true), '')::TEXT
         );
     ELSIF TG_OP = 'DELETE' THEN
         INSERT INTO logs (
@@ -44,9 +44,9 @@ BEGIN
             OLD.id,
             'DELETE',
             to_jsonb(OLD.*),
-            NULLIF(current_setting('current_user_id'), '')::UUID,
-            NULLIF(current_setting('client_ip'), '')::INET,
-            NULLIF(current_setting('user_agent'), '')::TEXT
+            NULLIF(current_setting('app.current_user_id', true), '')::UUID,
+            NULLIF(current_setting('app.client_ip', true), '')::INET,
+            NULLIF(current_setting('app.user_agent', true), '')::TEXT
         );
     END IF;
     RETURN NEW;

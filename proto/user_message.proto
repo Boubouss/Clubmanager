@@ -4,21 +4,116 @@ package proto;
 
 option go_package = "clubmanager/api/grpc/proto;proto";
 
-message Member {
-  string id = 1;
-  string firstname = 2;
-  string lastname = 3;
-  string birthdate = 4;
-  string gender = 5;
-  string club = 6;
-}
-
 message User {
   string id = 1;
   string username = 2;
   string email = 3;
   string phonenumber = 4;
-  repeated Member members = 5;
+}
+
+message Member {
+  string id = 1;
+  string user_id = 2;
+  string club_id = 3;
+  string firstname = 4;
+  string lastname = 5;
+  string birthdate = 6;
+  string gender = 7;
+  bool is_valid = 8;
+}
+
+message AddMemberRequest {
+  string user_id = 1;
+  string club_id = 2;
+  string firstname = 3;
+  string lastname = 4;
+  string birthdate = 5;
+  string gender = 6;
+}
+
+message AddMemberResponse {
+  Member member = 1;
+  map<string, string> errors = 2;
+}
+
+message ValidateMemberRequest {
+  string id = 1;
+}
+
+message ValidateMemberResponse {
+  Member member = 1;
+  map<string, string> errors = 2;
+}
+
+message GetMembersByUserRequest {
+  string user_id = 1;
+  string club_id = 2;
+}
+
+message GetMembersByUserResponse {
+  repeated Member members = 1;
+  map<string, string> errors = 2;
+}
+
+message UpdateMemberRequest {
+  string id = 1;
+  string firstname = 2;
+  string lastname = 3;
+  string birthdate = 4;
+  string gender = 5;
+}
+
+message UpdateMemberResponse {
+  Member member = 1;
+  map<string, string> errors = 2;
+}
+
+message RemoveMemberRequest {
+  string id = 1;
+}
+
+message RemoveMemberResponse {
+  bool ok = 1;
+}
+
+message Licence {
+  string id = 1;
+  string member_id = 2;
+  string licence_number = 3;
+  string valid_from = 4;
+  string valid_until = 5;
+  string status = 6;
+}
+
+message CreateLicenceRequest {
+  string member_id = 1;
+  string licence_number = 2;
+  string valid_from = 3;
+  string valid_until = 4;
+}
+
+message CreateLicenceResponse {
+  Licence licence = 1;
+  map<string, string> errors = 2;
+}
+
+message GetMemberLicencesRequest {
+  string member_id = 1;
+}
+
+message GetMemberLicencesResponse {
+  repeated Licence licences = 1;
+  map<string, string> errors = 2;
+}
+
+message UpdateLicenceStatusRequest {
+  string id = 1;
+  string status = 2;
+}
+
+message UpdateLicenceStatusResponse {
+  Licence licence = 1;
+  map<string, string> errors = 2;
 }
 
 message CreateUserRequest {
@@ -62,3 +157,312 @@ message DeleteUserRequest {
 message DeleteUserResponse {
   bool ok = 1;
 }
+
+message LoginUserRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginUserResponse {
+  User user = 1;
+  string token = 2;
+  map<string, string> errors = 3;
+}
+
+message Club {
+  string id = 1;
+  string siren = 2;
+  string name = 3;
+  string address = 4;
+  string city = 5;
+  string postal_code = 6;
+  string country = 7;
+  string phonenumber = 8;
+}
+
+message CreateClubRequest {
+  string siren = 1;
+  string name = 2;
+  string address = 3;
+  string city = 4;
+  string postal_code = 5;
+  string country = 6;
+  string phonenumber = 7;
+}
+
+message CreateClubResponse {
+  Club club = 1;
+  map<string, string> errors = 2;
+}
+
+message ReadClubRequest {
+  map<string, string> params = 1;
+}
+
+message ReadClubResponse {
+  repeated Club clubs = 1;
+  map<string, string> errors = 2;
+}
+
+message UpdateClubRequest {
+  string id = 1;
+  string name = 2;
+  string address = 3;
+  string city = 4;
+  string postal_code = 5;
+  string country = 6;
+  string phonenumber = 7;
+}
+
+message UpdateClubResponse {
+  Club club = 1;
+  map<string, string> errors = 2;
+}
+
+message DeleteClubRequest {
+  string id = 1;
+}
+
+message DeleteClubResponse {
+  bool ok = 1;
+}
+
+message Role {
+  string id = 1;
+  string user_id = 2;
+  string club_id = 3;
+  string role = 4;
+}
+
+message AssignRoleRequest {
+  string user_id = 1;
+  string club_id = 2;
+  string role = 3;
+}
+
+message AssignRoleResponse {
+  Role role = 1;
+  map<string, string> errors = 2;
+}
+
+message RemoveRoleRequest {
+  string id = 1;
+}
+
+message RemoveRoleResponse {
+  bool ok = 1;
+}
+
+message GetClubRolesRequest {
+  string club_id = 1;
+}
+
+message GetClubRolesResponse {
+  repeated Role roles = 1;
+  map<string, string> errors = 2;
+}
+
+message GetUserRolesRequest {
+  string user_id = 1;
+}
+
+message GetUserRolesResponse {
+  repeated Role roles = 1;
+  map<string, string> errors = 2;
+}
+
+// ── Events ───────────────────────────────────────────────────────────────────
+
+message JudoCategory {
+  string id = 1;
+  string age_group = 2;
+  string gender = 3;
+  int32 age_min = 4;
+  int32 age_max = 5;
+  string weight_label = 6;
+  double weight_max = 7;
+}
+
+message EventCategory {
+  string id = 1;
+  string event_id = 2;
+  string judo_category_id = 3;
+  string weigh_in_at = 4;
+  string starts_at = 5;
+  string status = 6;
+}
+
+message Event {
+  string id = 1;
+  string club_id = 2;
+  string created_by = 3;
+  string title = 4;
+  string description = 5;
+  string type = 6;
+  string status = 7;
+  string location = 8;
+  string registration_open_at = 9;
+  string registration_close_at = 10;
+  string date = 11;
+  int32 max_participants = 12;
+}
+
+message EventParticipant {
+  string id = 1;
+  string event_id = 2;
+  string member_id = 3;
+  string role = 4;
+  string event_category_id = 5;
+  string registered_at = 6;
+}
+
+message CarpoolOffer {
+  string id = 1;
+  string event_id = 2;
+  string member_id = 3;
+  string departure_address = 4;
+  int32 available_seats = 5;
+  string departure_at = 6;
+}
+
+message CreateEventCategoryInput {
+  string judo_category_id = 1;
+  string weigh_in_at = 2;
+  string starts_at = 3;
+}
+
+message CreateEventRequest {
+  string club_id = 1;
+  string title = 2;
+  string description = 3;
+  string type = 4;
+  string location = 5;
+  string registration_open_at = 6;
+  string registration_close_at = 7;
+  string date = 8;
+  int32 max_participants = 9;
+  repeated CreateEventCategoryInput categories = 10;
+}
+
+message CreateEventResponse {
+  Event event = 1;
+  repeated EventCategory categories = 2;
+  map<string, string> errors = 3;
+}
+
+message GetEventRequest {
+  string id = 1;
+}
+
+message GetEventResponse {
+  Event event = 1;
+  repeated EventCategory categories = 2;
+  map<string, string> errors = 3;
+}
+
+message ListClubEventsRequest {
+  string club_id = 1;
+}
+
+message ListClubEventsResponse {
+  repeated Event events = 1;
+  map<string, string> errors = 2;
+}
+
+message UpdateEventRequest {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  string location = 4;
+  string registration_open_at = 5;
+  string registration_close_at = 6;
+  string date = 7;
+  int32 max_participants = 8;
+}
+
+message UpdateEventResponse {
+  Event event = 1;
+  map<string, string> errors = 2;
+}
+
+message CancelEventRequest { string id = 1; }
+message CancelEventResponse { bool ok = 1; }
+
+message OpenEventRequest { string id = 1; }
+message OpenEventResponse { bool ok = 1; }
+
+message RegisterParticipantRequest {
+  string event_id = 1;
+  string member_id = 2;
+  string role = 3;
+  string event_category_id = 4;
+}
+
+message RegisterParticipantResponse {
+  EventParticipant participant = 1;
+  map<string, string> errors = 2;
+}
+
+message UnregisterParticipantRequest {
+  string event_id = 1;
+  string member_id = 2;
+}
+
+message UnregisterParticipantResponse { bool ok = 1; }
+
+message GetParticipantsRequest { string event_id = 1; }
+
+message GetParticipantsResponse {
+  repeated EventParticipant participants = 1;
+  map<string, string> errors = 2;
+}
+
+message ExportParticipantsRequest { string event_id = 1; }
+message ExportParticipantsResponse { bytes csv_data = 1; }
+
+message UpdateCategoryStatusRequest {
+  string category_id = 1;
+  string status = 2;
+}
+
+message UpdateCategoryStatusResponse {
+  EventCategory category = 1;
+  map<string, string> errors = 2;
+}
+
+message CreateCarpoolOfferRequest {
+  string event_id = 1;
+  string member_id = 2;
+  string departure_address = 3;
+  int32 available_seats = 4;
+  string departure_at = 5;
+}
+
+message CreateCarpoolOfferResponse {
+  CarpoolOffer offer = 1;
+  map<string, string> errors = 2;
+}
+
+message JoinCarpoolOfferRequest {
+  string offer_id = 1;
+  string member_id = 2;
+}
+message JoinCarpoolOfferResponse { bool ok = 1; }
+
+message LeaveCarpoolOfferRequest {
+  string offer_id = 1;
+  string member_id = 2;
+}
+message LeaveCarpoolOfferResponse { bool ok = 1; }
+
+message GetEventCarpoolsRequest { string event_id = 1; }
+message GetEventCarpoolsResponse {
+  repeated CarpoolOffer offers = 1;
+  map<string, string> errors = 2;
+}
+
+message CancelCarpoolOfferRequest { string offer_id = 1; }
+message CancelCarpoolOfferResponse { bool ok = 1; }
+
+message ListJudoCategoriesRequest {}
+message ListJudoCategoriesResponse { repeated JudoCategory categories = 1; }
