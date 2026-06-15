@@ -5,6 +5,8 @@ import (
 	"clubmanager/internal/domain/members"
 	"context"
 	"errors"
+	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -79,6 +81,40 @@ func (r memberRepository) Search(ctx context.Context, params *domain.SearchParam
 		"SELECT id, user_id, firstname, lastname, birthdate::text, gender, is_primary FROM members WHERE "+where,
 		args...,
 	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []*members.Member
+	for rows.Next() {
+		m := members.Member{}
+		if err := rows.Scan(&m.Id, &m.UserId, &m.Firstname, &m.Lastname, &m.Birthdate, &m.Gender, &m.IsPrimary); err != nil {
+			return nil, err
+		}
+		list = append(list, &m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+// FindByIds fetches all members whose ID is in the given list in a single query.
+// IDs that don't match any row are silently absent from the result.
+func (r memberRepository) FindByIds(ctx context.Context, ids []string) ([]*members.Member, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	// Build $1, $2, ... placeholders
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "$" + strconv.Itoa(i+1)
+		args[i] = id
+	}
+	query := "SELECT id, user_id, firstname, lastname, birthdate::text, gender, is_primary FROM members WHERE id IN (" + strings.Join(placeholders, ", ") + ")"
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

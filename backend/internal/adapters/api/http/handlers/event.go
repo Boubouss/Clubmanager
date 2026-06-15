@@ -304,11 +304,20 @@ func (h *EventHandler) HandleEventDetail(c *echo.Context) error {
 	}
 	var myParticipants []myParticipant
 	myMemberIds := make(map[string]bool)
-	for _, p := range participantsResp.Participants {
-		m, err2 := h.memberSvc.GetMember(c.Request().Context(), p.MemberId.String())
-		if err2 == nil && m != nil && m.UserId.String() == userId {
-			myMemberIds[p.MemberId.String()] = true
-			myParticipants = append(myParticipants, myParticipant{member: m, participant: p})
+	{
+		allParticipantIds := make([]string, 0, len(participantsResp.Participants))
+		for _, p := range participantsResp.Participants {
+			allParticipantIds = append(allParticipantIds, p.MemberId.String())
+		}
+		memberMap, err2 := h.memberSvc.GetMembersByIds(c.Request().Context(), allParticipantIds)
+		if err2 != nil {
+			return err2
+		}
+		for _, p := range participantsResp.Participants {
+			if m, ok := memberMap[p.MemberId.String()]; ok && m.UserId.String() == userId {
+				myMemberIds[p.MemberId.String()] = true
+				myParticipants = append(myParticipants, myParticipant{member: m, participant: p})
+			}
 		}
 	}
 
@@ -384,6 +393,13 @@ func (h *EventHandler) HandleEventDetail(c *echo.Context) error {
 			isAlreadyDriver := false
 			isAlreadyPassenger := false
 
+			// Pre-load all driver members in one query
+			driverIds := make([]string, 0, len(carpoolResp.Offers))
+			for _, offer := range carpoolResp.Offers {
+				driverIds = append(driverIds, offer.MemberId.String())
+			}
+			driverMap, _ := h.memberSvc.GetMembersByIds(c.Request().Context(), driverIds)
+
 			for _, offer := range carpoolResp.Offers {
 				isOwnOffer := myMemberIds[offer.MemberId.String()]
 				if isOwnOffer {
@@ -400,8 +416,7 @@ func (h *EventHandler) HandleEventDetail(c *echo.Context) error {
 				}
 
 				driverName := "Conducteur inconnu"
-				driver, _ := h.memberSvc.GetMember(c.Request().Context(), offer.MemberId.String())
-				if driver != nil {
+				if driver, ok := driverMap[offer.MemberId.String()]; ok && driver != nil {
 					driverName = driver.Firstname + " " + driver.Lastname
 				}
 
@@ -469,17 +484,25 @@ func (h *EventHandler) HandleEventDetail(c *echo.Context) error {
 
 	// Non-competition: show participants directly
 	var rows []dto.ParticipantRow
-	for _, p := range participantsResp.Participants {
-		memberId := p.MemberId.String()
-		m, err2 := h.memberSvc.GetMember(c.Request().Context(), memberId)
-		name := "Membre inconnu"
-		if err2 == nil && m != nil {
-			name = m.Firstname + " " + m.Lastname
+	{
+		nonCompIds := make([]string, 0, len(participantsResp.Participants))
+		for _, p := range participantsResp.Participants {
+			nonCompIds = append(nonCompIds, p.MemberId.String())
 		}
-		rows = append(rows, dto.ParticipantRow{
-			Participant: p,
-			MemberName:  name,
-		})
+		nonCompMemberMap, err2 := h.memberSvc.GetMembersByIds(c.Request().Context(), nonCompIds)
+		if err2 != nil {
+			return err2
+		}
+		for _, p := range participantsResp.Participants {
+			name := "Membre inconnu"
+			if m, ok := nonCompMemberMap[p.MemberId.String()]; ok && m != nil {
+				name = m.Firstname + " " + m.Lastname
+			}
+			rows = append(rows, dto.ParticipantRow{
+				Participant: p,
+				MemberName:  name,
+			})
+		}
 	}
 	return render(c, pages.EventDetail(eventResp.Event, nil, 0, 0, rows, isManager, csrf(c), c.QueryParam("error"), carpoolOffers, canCreateOffer, myParticipationRows))
 }
@@ -541,6 +564,16 @@ func (h *EventHandler) HandleAgeGroupParticipants(c *echo.Context) error {
 		return err
 	}
 
+	// Pre-load all participant members in a single query
+	allMemberIds := make([]string, 0, len(participantsResp.Participants))
+	for _, p := range participantsResp.Participants {
+		allMemberIds = append(allMemberIds, p.MemberId.String())
+	}
+	memberMap, err := h.memberSvc.GetMembersByIds(c.Request().Context(), allMemberIds)
+	if err != nil {
+		return err
+	}
+
 	// Role-based filter (coach/referee or accompanist)
 	if roleParam != "" {
 		rolesSet := make(map[string]bool)
@@ -556,9 +589,8 @@ func (h *EventHandler) HandleAgeGroupParticipants(c *echo.Context) error {
 			if viewingClubMemberIds != nil && !viewingClubMemberIds[memberId] {
 				continue
 			}
-			m, err2 := h.memberSvc.GetMember(c.Request().Context(), memberId)
 			name := "Inconnu"
-			if err2 == nil && m != nil {
+			if m, ok := memberMap[memberId]; ok && m != nil {
 				name = m.Firstname + " " + m.Lastname
 			}
 			rows = append(rows, dto.ParticipantRow{Participant: p, MemberName: name})
@@ -604,9 +636,8 @@ func (h *EventHandler) HandleAgeGroupParticipants(c *echo.Context) error {
 		if viewingClubMemberIds != nil && !viewingClubMemberIds[memberId] {
 			continue
 		}
-		m, err2 := h.memberSvc.GetMember(c.Request().Context(), memberId)
 		name := "Inconnu"
-		if err2 == nil && m != nil {
+		if m, ok := memberMap[memberId]; ok && m != nil {
 			name = m.Firstname + " " + m.Lastname
 		}
 		rows = append(rows, dto.ParticipantRow{
@@ -1115,10 +1146,17 @@ func (h *EventHandler) HandleCarpoolOfferPage(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
+	carpoolMemberIds := make([]string, 0, len(participantsResp.Participants))
+	for _, p := range participantsResp.Participants {
+		carpoolMemberIds = append(carpoolMemberIds, p.MemberId.String())
+	}
+	carpoolMemberMap, err := h.memberSvc.GetMembersByIds(c.Request().Context(), carpoolMemberIds)
+	if err != nil {
+		return err
+	}
 	var myMembers []*memberDomain.Member
 	for _, p := range participantsResp.Participants {
-		m, err2 := h.memberSvc.GetMember(c.Request().Context(), p.MemberId.String())
-		if err2 == nil && m != nil && m.UserId.String() == userId {
+		if m, ok := carpoolMemberMap[p.MemberId.String()]; ok && m != nil && m.UserId.String() == userId {
 			myMembers = append(myMembers, m)
 		}
 	}
@@ -1160,9 +1198,13 @@ func (h *EventHandler) HandleCreateCarpoolOffer(c *echo.Context) error {
 		var myMembers []*memberDomain.Member
 		if eventResp != nil {
 			participantsResp, _ := h.eventSvc.GetParticipants(c.Request().Context(), eventId)
+			errFormIds := make([]string, 0, len(participantsResp.Participants))
 			for _, p := range participantsResp.Participants {
-				mm, err2 := h.memberSvc.GetMember(c.Request().Context(), p.MemberId.String())
-				if err2 == nil && mm != nil && mm.UserId.String() == userId {
+				errFormIds = append(errFormIds, p.MemberId.String())
+			}
+			errFormMap, _ := h.memberSvc.GetMembersByIds(c.Request().Context(), errFormIds)
+			for _, p := range participantsResp.Participants {
+				if mm, ok := errFormMap[p.MemberId.String()]; ok && mm != nil && mm.UserId.String() == userId {
 					myMembers = append(myMembers, mm)
 				}
 			}
@@ -1184,10 +1226,17 @@ func (h *EventHandler) HandleJoinCarpoolOffer(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
+	joinIds := make([]string, 0, len(participantsResp.Participants))
+	for _, p := range participantsResp.Participants {
+		joinIds = append(joinIds, p.MemberId.String())
+	}
+	joinMemberMap, err := h.memberSvc.GetMembersByIds(c.Request().Context(), joinIds)
+	if err != nil {
+		return err
+	}
 	memberId := ""
 	for _, p := range participantsResp.Participants {
-		m, err2 := h.memberSvc.GetMember(c.Request().Context(), p.MemberId.String())
-		if err2 == nil && m != nil && m.UserId.String() == userId {
+		if m, ok := joinMemberMap[p.MemberId.String()]; ok && m != nil && m.UserId.String() == userId {
 			memberId = p.MemberId.String()
 			break
 		}
@@ -1218,10 +1267,17 @@ func (h *EventHandler) HandleLeaveCarpoolOffer(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
+	leaveIds := make([]string, 0, len(participantsResp.Participants))
+	for _, p := range participantsResp.Participants {
+		leaveIds = append(leaveIds, p.MemberId.String())
+	}
+	leaveMemberMap, err := h.memberSvc.GetMembersByIds(c.Request().Context(), leaveIds)
+	if err != nil {
+		return err
+	}
 	memberId := ""
 	for _, p := range participantsResp.Participants {
-		m, err2 := h.memberSvc.GetMember(c.Request().Context(), p.MemberId.String())
-		if err2 == nil && m != nil && m.UserId.String() == userId {
+		if m, ok := leaveMemberMap[p.MemberId.String()]; ok && m != nil && m.UserId.String() == userId {
 			memberId = p.MemberId.String()
 			break
 		}

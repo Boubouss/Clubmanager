@@ -15,10 +15,11 @@ import (
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
 type mockMemberRepository struct {
-	saveFunc   func(context.Context, *members.Member) (*members.Member, error)
-	findFunc   func(context.Context, string) (*members.Member, error)
-	searchFunc func(context.Context, *domain.SearchParams) ([]*members.Member, error)
-	deleteFunc func(context.Context, string) (bool, error)
+	saveFunc      func(context.Context, *members.Member) (*members.Member, error)
+	findFunc      func(context.Context, string) (*members.Member, error)
+	searchFunc    func(context.Context, *domain.SearchParams) ([]*members.Member, error)
+	deleteFunc    func(context.Context, string) (bool, error)
+	findByIdsFunc func(context.Context, []string) ([]*members.Member, error)
 }
 
 func (m mockMemberRepository) Save(ctx context.Context, mb *members.Member) (*members.Member, error) {
@@ -32,6 +33,12 @@ func (m mockMemberRepository) Search(ctx context.Context, p *domain.SearchParams
 }
 func (m mockMemberRepository) Delete(ctx context.Context, id string) (bool, error) {
 	return m.deleteFunc(ctx, id)
+}
+func (m mockMemberRepository) FindByIds(ctx context.Context, ids []string) ([]*members.Member, error) {
+	if m.findByIdsFunc != nil {
+		return m.findByIdsFunc(ctx, ids)
+	}
+	return nil, nil
 }
 
 type mockClubMembershipRepository struct {
@@ -85,14 +92,14 @@ var (
 	}
 )
 
-func newTestMemberService(memberRepo domain.Repository[members.Member, string], msRepo ClubMembershipRepository) *memberService {
+func newTestMemberService(memberRepo MemberRepository, msRepo ClubMembershipRepository) *memberService {
 	return NewMemberService(MemberServiceConfig{
 		Repository:           memberRepo,
 		MembershipRepository: msRepo,
 	})
 }
 
-func newTestMemberServiceWithChecker(memberRepo domain.Repository[members.Member, string], msRepo ClubMembershipRepository, checker mockClubStatusChecker) *memberService {
+func newTestMemberServiceWithChecker(memberRepo MemberRepository, msRepo ClubMembershipRepository, checker mockClubStatusChecker) *memberService {
 	return NewMemberService(MemberServiceConfig{
 		Repository:           memberRepo,
 		MembershipRepository: msRepo,
@@ -484,4 +491,49 @@ func TestGetMembersByUser(t *testing.T) {
 			assert.Len(t, res.Members, tt.wantCount)
 		})
 	}
+}
+
+func TestGetMembersByIds(t *testing.T) {
+	id1 := uuid.MustParse("00000000-0000-0000-0000-000000000041")
+	id2 := uuid.MustParse("00000000-0000-0000-0000-000000000042")
+	m1 := &members.Member{Id: id1, Firstname: "Alice", Lastname: "A", Gender: "woman", Birthdate: "2000-01-01"}
+	m2 := &members.Member{Id: id2, Firstname: "Bob", Lastname: "B", Gender: "man", Birthdate: "2001-01-01"}
+
+	t.Run("nominal — returns map indexed by id", func(t *testing.T) {
+		repo := mockMemberRepository{
+			findByIdsFunc: func(_ context.Context, ids []string) ([]*members.Member, error) {
+				return []*members.Member{m1, m2}, nil
+			},
+		}
+		svc := newTestMemberService(repo, noopMembershipRepo())
+		result, err := svc.GetMembersByIds(context.Background(), []string{id1.String(), id2.String()})
+		assert.NoError(t, err)
+		assert.Len(t, result, 2)
+		assert.Equal(t, m1, result[id1.String()])
+		assert.Equal(t, m2, result[id2.String()])
+	})
+
+	t.Run("empty ids — returns empty map without calling repository", func(t *testing.T) {
+		repo := mockMemberRepository{
+			findByIdsFunc: func(_ context.Context, ids []string) ([]*members.Member, error) {
+				t.Error("findByIds should not be called for empty ids")
+				return nil, nil
+			},
+		}
+		svc := newTestMemberService(repo, noopMembershipRepo())
+		result, err := svc.GetMembersByIds(context.Background(), []string{})
+		assert.NoError(t, err)
+		assert.Empty(t, result)
+	})
+
+	t.Run("repository error — propagates error", func(t *testing.T) {
+		repo := mockMemberRepository{
+			findByIdsFunc: func(_ context.Context, ids []string) ([]*members.Member, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := newTestMemberService(repo, noopMembershipRepo())
+		_, err := svc.GetMembersByIds(context.Background(), []string{id1.String()})
+		assert.Error(t, err)
+	})
 }

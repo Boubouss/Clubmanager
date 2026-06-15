@@ -59,6 +59,13 @@ func (s *memberLoggingService) GetMember(ctx context.Context, memberId string) (
 	return s.next.GetMember(ctx, memberId)
 }
 
+func (s *memberLoggingService) GetMembersByIds(ctx context.Context, ids []string) (res map[string]*members.Member, err error) {
+	defer func(begin time.Time) {
+		fmt.Printf("=> type: '%s'; count: %d; took: '%v'; err: '%v'.\n", "GetMembersByIds", len(ids), time.Since(begin), err)
+	}(time.Now())
+	return s.next.GetMembersByIds(ctx, ids)
+}
+
 func (s *memberLoggingService) GetMembersByUser(ctx context.Context, data *dto.GetMembersByUserRequest) (res *dto.GetMembersByUserResponse, err error) {
 	defer func(begin time.Time) {
 		fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "GetMembersByUser", time.Since(begin), err)

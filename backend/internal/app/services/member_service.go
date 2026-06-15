@@ -11,6 +11,12 @@ import (
 	"github.com/google/uuid"
 )
 
+// MemberRepository extends the generic repository with a batch lookup by IDs.
+type MemberRepository interface {
+	domain.Repository[members.Member, string]
+	FindByIds(ctx context.Context, ids []string) ([]*members.Member, error)
+}
+
 // ClubMembershipRepository defines the persistence port for club memberships.
 type ClubMembershipRepository interface {
 	Save(ctx context.Context, cm *members.ClubMembership) (*members.ClubMembership, error)
@@ -38,6 +44,7 @@ type MemberService interface {
 	AddMember(context.Context, *dto.AddMemberRequest) (*dto.AddMemberResponse, error)
 	ValidateMember(context.Context, *dto.ValidateMemberRequest) (*dto.ValidateMemberResponse, error)
 	GetMember(context.Context, string) (*members.Member, error)
+	GetMembersByIds(context.Context, []string) (map[string]*members.Member, error)
 	GetMembersByUser(context.Context, *dto.GetMembersByUserRequest) (*dto.GetMembersByUserResponse, error)
 	GetMembersByClub(context.Context, *dto.GetMembersByClubRequest) (*dto.GetMembersByClubResponse, error)
 	GetStaffContacts(context.Context, string) (*dto.GetStaffContactsResponse, error)
@@ -48,7 +55,7 @@ type MemberService interface {
 }
 
 type MemberServiceConfig struct {
-	Repository           domain.Repository[members.Member, string]
+	Repository           MemberRepository
 	MembershipRepository ClubMembershipRepository
 	UserClubsPort        UserClubsPort
 	StaffContactsPort    StaffContactsPort
@@ -56,7 +63,7 @@ type MemberServiceConfig struct {
 }
 
 type memberService struct {
-	repo              domain.Repository[members.Member, string]
+	repo              MemberRepository
 	membershipRepo    ClubMembershipRepository
 	userClubsPort     UserClubsPort
 	staffContactsPort StaffContactsPort
@@ -201,6 +208,23 @@ func (s *memberService) ValidateMember(ctx context.Context, data *dto.ValidateMe
 
 func (s *memberService) GetMember(ctx context.Context, memberId string) (*members.Member, error) {
 	return s.repo.Find(ctx, memberId)
+}
+
+// GetMembersByIds fetches multiple members in a single query and returns them
+// indexed by their ID string. Missing IDs are silently absent from the map.
+func (s *memberService) GetMembersByIds(ctx context.Context, ids []string) (map[string]*members.Member, error) {
+	if len(ids) == 0 {
+		return map[string]*members.Member{}, nil
+	}
+	list, err := s.repo.FindByIds(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]*members.Member, len(list))
+	for _, m := range list {
+		result[m.Id.String()] = m
+	}
+	return result, nil
 }
 
 func (s *memberService) GetMembersByUser(ctx context.Context, data *dto.GetMembersByUserRequest) (*dto.GetMembersByUserResponse, error) {
