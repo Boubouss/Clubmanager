@@ -5,10 +5,12 @@ import (
 	"clubmanager/internal/adapters/api/http/views/components"
 	"clubmanager/internal/adapters/api/http/views/pages"
 	"clubmanager/internal/app/services"
+	eventsDomain "clubmanager/internal/domain/events"
 	membersDomain "clubmanager/internal/domain/members"
 	"context"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 )
 
@@ -173,5 +175,21 @@ func (h *ClubHandler) HandleClubDetail(c *echo.Context) error {
 		return err
 	}
 
-	return render(c, pages.ClubDetail(clubResp.Club, eventsResp.Events, postResp.Posts))
+	// Build a set of event IDs already covered by a post to avoid duplicates in the activity feed.
+	coveredEventIds := make(map[uuid.UUID]struct{})
+	for _, p := range postResp.Posts {
+		if p.EventId != uuid.Nil {
+			coveredEventIds[p.EventId] = struct{}{}
+		}
+	}
+
+	// Filter out events that are already represented by a post.
+	filteredEvents := make([]*eventsDomain.Event, 0, len(eventsResp.Events))
+	for _, ev := range eventsResp.Events {
+		if _, covered := coveredEventIds[ev.Id]; !covered {
+			filteredEvents = append(filteredEvents, ev)
+		}
+	}
+
+	return render(c, pages.ClubDetail(clubResp.Club, filteredEvents, postResp.Posts))
 }
