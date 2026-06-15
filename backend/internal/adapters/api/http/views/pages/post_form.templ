@@ -1,0 +1,162 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/http/views/layout"
+	"clubmanager/internal/domain/posts"
+)
+
+// PostForm is used for both creation (post == nil) and editing (post != nil).
+templ PostForm(clubId string, post *posts.Post, errors map[string]string, csrfToken string) {
+	@layout.Page(postFormTitle(post), true) {
+		<div class="max-w-2xl mx-auto">
+			<a href={ templ.SafeURL(postFormBackURL(clubId, post)) } class="inline-flex items-center gap-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface mb-lg no-underline">
+				<span class="material-symbols-outlined text-[16px]">arrow_back</span>
+				{ postFormBackLabel(post) }
+			</a>
+
+			<div class="bg-surface rounded-xl card-shadow p-lg">
+				<h1 class="font-headline-md text-headline-md text-on-surface mb-lg">{ postFormTitle(post) }</h1>
+
+				<form method="POST" action={ templ.SafeURL(postFormAction(clubId, post)) } class="flex flex-col gap-md">
+					<input type="hidden" name="_csrf" value={ csrfToken }/>
+
+					<!-- Titre -->
+					<div class="flex flex-col gap-xs">
+						<label class="font-body-sm text-body-sm font-semibold text-on-surface" for="title">Titre</label>
+						<input
+							id="title"
+							name="title"
+							type="text"
+							required
+							maxlength="200"
+							value={ postFormTitle2(post) }
+							placeholder="Titre de l'actualité"
+							class="w-full px-md py-sm bg-surface-container rounded-lg font-body-md text-body-md text-on-surface border border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary"
+						/>
+						if errors["title"] != "" {
+							<p class="font-body-sm text-body-sm text-red-600">{ errors["title"] }</p>
+						}
+					</div>
+
+					<!-- Contenu -->
+					<div class="flex flex-col gap-xs">
+						<label class="font-body-sm text-body-sm font-semibold text-on-surface" for="content">Contenu</label>
+						<textarea
+							id="content"
+							name="content"
+							rows="10"
+							required
+							placeholder="Écrivez le contenu de votre actualité..."
+							class="w-full px-md py-sm bg-surface-container rounded-lg font-body-md text-body-md text-on-surface border border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary resize-y"
+						>{ postFormContent(post) }</textarea>
+						if errors["content"] != "" {
+							<p class="font-body-sm text-body-sm text-red-600">{ errors["content"] }</p>
+						}
+					</div>
+
+					<!-- Visibilité -->
+					<div class="flex flex-col gap-xs">
+						<label class="font-body-sm text-body-sm font-semibold text-on-surface">Visibilité</label>
+						<div class="flex gap-md">
+							<label class="flex items-center gap-xs cursor-pointer">
+								<input
+									type="radio"
+									name="visibility"
+									value="adherent"
+									checked?={ postFormVisibility(post) == "adherent" }
+									class="accent-primary"
+								/>
+								<span class="font-body-md text-body-md text-on-surface">Membres uniquement</span>
+							</label>
+							<label class="flex items-center gap-xs cursor-pointer">
+								<input
+									type="radio"
+									name="visibility"
+									value="public"
+									checked?={ postFormVisibility(post) == "public" }
+									class="accent-primary"
+								/>
+								<span class="font-body-md text-body-md text-on-surface">Public</span>
+							</label>
+						</div>
+						if errors["visibility"] != "" {
+							<p class="font-body-sm text-body-sm text-red-600">{ errors["visibility"] }</p>
+						}
+					</div>
+
+					if errors["auth"] != "" {
+						<p class="font-body-sm text-body-sm text-red-600">{ errors["auth"] }</p>
+					}
+
+					<!-- Actions -->
+					<div class="flex gap-sm justify-end pt-sm border-t border-outline-variant">
+						if post == nil {
+							<button type="submit" name="status" value="draft" class="inline-flex items-center gap-xs px-md py-sm bg-surface-container text-on-surface rounded-lg font-bold font-body-sm text-body-sm hover:bg-surface-container-high transition-all cursor-pointer border border-outline-variant">
+								<span class="material-symbols-outlined text-[16px]">save</span>
+								Enregistrer en brouillon
+							</button>
+							<button type="submit" name="status" value="published" class="inline-flex items-center gap-xs px-md py-sm bg-primary text-on-primary rounded-lg font-bold font-body-sm text-body-sm hover:brightness-110 transition-all cursor-pointer border-none">
+								<span class="material-symbols-outlined text-[16px]">publish</span>
+								Publier
+							</button>
+						} else {
+							<button type="submit" class="inline-flex items-center gap-xs px-md py-sm bg-primary text-on-primary rounded-lg font-bold font-body-sm text-body-sm hover:brightness-110 transition-all cursor-pointer border-none">
+								<span class="material-symbols-outlined text-[16px]">save</span>
+								Enregistrer
+							</button>
+						}
+					</div>
+				</form>
+			</div>
+		</div>
+	}
+}
+
+func postFormTitle(post *posts.Post) string {
+	if post == nil {
+		return "Nouveau post"
+	}
+	return "Modifier le post"
+}
+
+func postFormBackLabel(post *posts.Post) string {
+	if post == nil {
+		return "Retour aux actualités"
+	}
+	return "Retour au post"
+}
+
+func postFormBackURL(clubId string, post *posts.Post) string {
+	if post == nil {
+		return "/clubs/" + clubId + "/posts"
+	}
+	return "/posts/" + post.Id.String()
+}
+
+func postFormAction(clubId string, post *posts.Post) string {
+	if post == nil {
+		return "/clubs/" + clubId + "/posts"
+	}
+	return "/posts/" + post.Id.String()
+}
+
+func postFormTitle2(post *posts.Post) string {
+	if post == nil {
+		return ""
+	}
+	return post.Title
+}
+
+func postFormContent(post *posts.Post) string {
+	if post == nil {
+		return ""
+	}
+	return post.Content
+}
+
+func postFormVisibility(post *posts.Post) string {
+	if post == nil {
+		return "adherent"
+	}
+	return post.Visibility
+}

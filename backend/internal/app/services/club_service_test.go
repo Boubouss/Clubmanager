@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// ── Mocks ─────────────────────────────────────────────────────────────────────
+
 type mockClubRepository struct {
 	saveFunc   func(context.Context, *clubs.Club) (*clubs.Club, error)
 	findFunc   func(context.Context, string) (*clubs.Club, error)
@@ -32,11 +34,50 @@ func (m mockClubRepository) Delete(ctx context.Context, id string) (bool, error)
 	return m.deleteFunc(ctx, id)
 }
 
+type mockClubStatusRepo struct {
+	updateStatusFunc func(context.Context, string, string) error
+}
+
+func (m mockClubStatusRepo) UpdateStatus(ctx context.Context, clubId, status string) error {
+	return m.updateStatusFunc(ctx, clubId, status)
+}
+
+type mockRoleCheckerForClub struct {
+	isSuperAdminFunc func(context.Context, string) (bool, error)
+}
+
+func (m mockRoleCheckerForClub) HasRole(ctx context.Context, userId, clubId string, roles ...string) (bool, error) {
+	return false, nil
+}
+func (m mockRoleCheckerForClub) IsSuperAdmin(ctx context.Context, userId string) (bool, error) {
+	return m.isSuperAdminFunc(ctx, userId)
+}
+
+type mockSireneVerifier struct {
+	verifyFunc func(context.Context, string) error
+}
+
+func (m mockSireneVerifier) Verify(ctx context.Context, siren string) error {
+	return m.verifyFunc(ctx, siren)
+}
+
+// mockClubStatusChecker is used by member/event/role service tests.
+type mockClubStatusChecker struct {
+	isActiveFunc func(context.Context, string) (bool, error)
+}
+
+func (m mockClubStatusChecker) IsActive(ctx context.Context, clubId string) (bool, error) {
+	return m.isActiveFunc(ctx, clubId)
+}
+
+// ── Fixtures ──────────────────────────────────────────────────────────────────
+
 var (
 	clubUUID = uuid.MustParse("00000000-0000-0000-0000-000000000002")
 	testClub = &clubs.Club{
 		Id: clubUUID, Siren: "123456789", Name: "Judo Club Paris",
 		Address: "1 rue de la Paix", City: "Paris", PostalCode: "75001", Country: "FRANCE",
+		Status: clubs.StatusPending,
 	}
 )
 
@@ -44,19 +85,46 @@ func newTestClubService(repo domain.Repository[clubs.Club, string]) *clubService
 	return NewClubService(ClubServiceConfig{Repository: repo})
 }
 
+func newFullTestClubService(
+	repo domain.Repository[clubs.Club, string],
+	statusRepo ClubStatusRepository,
+	checker mockRoleCheckerForClub,
+	verifier mockSireneVerifier,
+) *clubService {
+	return NewClubService(ClubServiceConfig{
+		Repository:     repo,
+		StatusRepo:     statusRepo,
+		RoleChecker:    checker,
+		SireneVerifier: verifier,
+	})
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
 func TestCreateClub(t *testing.T) {
 	tests := []struct {
-		name       string
-		req        *dto.CreateClubRequest
-		searchResp []*clubs.Club
-		searchErr  error
-		wantErrors bool
-		wantErr    bool
+		name           string
+		req            *dto.CreateClubRequest
+		searchResp     []*clubs.Club
+		searchErr      error
+		sireneErr      error
+		wantErrors     bool
+		wantErr        bool
+		wantStatus     string
 	}{
 		{
-			name:       "Valid club",
+			name:       "Valid club — Sirene down → pending",
 			req:        &dto.CreateClubRequest{Siren: "123456789", Name: "Judo Club Paris", Address: "1 rue de la Paix", City: "Paris", PostalCode: "75001"},
 			searchResp: []*clubs.Club{},
+			sireneErr:  errors.New("api unreachable"),
+			wantStatus: clubs.StatusPending,
+		},
+		{
+			name:       "Valid club — Sirene OK → active",
+			req:        &dto.CreateClubRequest{Siren: "123456789", Name: "Judo Club Paris", Address: "1 rue de la Paix", City: "Paris", PostalCode: "75001"},
+			searchResp: []*clubs.Club{},
+			sireneErr:  nil,
+			wantStatus: clubs.StatusActive,
 		},
 		{
 			name:       "Invalid SIREN",
@@ -88,8 +156,17 @@ func TestCreateClub(t *testing.T) {
 					return c, nil
 				},
 			}
+			statusRepo := mockClubStatusRepo{
+				updateStatusFunc: func(_ context.Context, _, _ string) error { return nil },
+			}
+			checker := mockRoleCheckerForClub{
+				isSuperAdminFunc: func(_ context.Context, _ string) (bool, error) { return false, nil },
+			}
+			verifier := mockSireneVerifier{
+				verifyFunc: func(_ context.Context, _ string) error { return tt.sireneErr },
+			}
 
-			svc := newTestClubService(repo)
+			svc := newFullTestClubService(repo, statusRepo, checker, verifier)
 			res, err := svc.CreateClub(context.Background(), tt.req)
 
 			if tt.wantErr {
@@ -103,6 +180,183 @@ func TestCreateClub(t *testing.T) {
 			} else {
 				assert.Empty(t, res.Errors)
 				assert.NotNil(t, res.Club)
+				if tt.wantStatus != "" {
+					assert.Equal(t, tt.wantStatus, res.Club.Status)
+				}
+			}
+		})
+	}
+}
+
+func TestValidateClub(t *testing.T) {
+	superAdminCtx := context.WithValue(context.Background(), "user_id", "super-user-id")
+	normalCtx := context.WithValue(context.Background(), "user_id", "normal-user-id")
+
+	tests := []struct {
+		name           string
+		ctx            context.Context
+		club           *clubs.Club
+		isSuperAdmin   bool
+		updateErr      error
+		wantErrors     bool
+		wantErr        bool
+	}{
+		{
+			name:         "Superadmin validates pending club",
+			ctx:          superAdminCtx,
+			club:         testClub, // StatusPending
+			isSuperAdmin: true,
+		},
+		{
+			name:         "Non-superadmin rejected",
+			ctx:          normalCtx,
+			club:         testClub,
+			isSuperAdmin: false,
+			wantErrors:   true,
+		},
+		{
+			name:         "Club not found",
+			ctx:          superAdminCtx,
+			club:         nil,
+			isSuperAdmin: true,
+			wantErrors:   true,
+		},
+		{
+			name:         "Club already active",
+			ctx:          superAdminCtx,
+			club:         &clubs.Club{Id: clubUUID, Status: clubs.StatusActive},
+			isSuperAdmin: true,
+			wantErrors:   true,
+		},
+		{
+			name:         "UpdateStatus error",
+			ctx:          superAdminCtx,
+			club:         testClub,
+			isSuperAdmin: true,
+			updateErr:    errors.New("db error"),
+			wantErr:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Capture a copy to avoid mutation across test cases.
+			club := tt.club
+			var clubCopy *clubs.Club
+			if club != nil {
+				c := *club
+				clubCopy = &c
+			}
+			repo := mockClubRepository{
+				findFunc: func(_ context.Context, _ string) (*clubs.Club, error) {
+					return clubCopy, nil
+				},
+			}
+			statusRepo := mockClubStatusRepo{
+				updateStatusFunc: func(_ context.Context, _, _ string) error { return tt.updateErr },
+			}
+			checker := mockRoleCheckerForClub{
+				isSuperAdminFunc: func(_ context.Context, _ string) (bool, error) {
+					return tt.isSuperAdmin, nil
+				},
+			}
+			verifier := mockSireneVerifier{
+				verifyFunc: func(_ context.Context, _ string) error { return nil },
+			}
+
+			svc := newFullTestClubService(repo, statusRepo, checker, verifier)
+			res, err := svc.ValidateClub(tt.ctx, &dto.ValidateClubRequest{ClubId: clubUUID.String()})
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			if tt.wantErrors {
+				assert.True(t, len(res.Errors) > 0)
+			} else {
+				assert.Empty(t, res.Errors)
+				assert.NotNil(t, res.Club)
+				assert.Equal(t, clubs.StatusActive, res.Club.Status)
+			}
+		})
+	}
+}
+
+func TestSuspendClub(t *testing.T) {
+	superAdminCtx := context.WithValue(context.Background(), "user_id", "super-user-id")
+	normalCtx := context.WithValue(context.Background(), "user_id", "normal-user-id")
+
+	tests := []struct {
+		name         string
+		ctx          context.Context
+		club         *clubs.Club
+		isSuperAdmin bool
+		updateErr    error
+		wantErrors   bool
+		wantErr      bool
+	}{
+		{
+			name:         "Superadmin suspends active club",
+			ctx:          superAdminCtx,
+			club:         &clubs.Club{Id: clubUUID, Status: clubs.StatusActive},
+			isSuperAdmin: true,
+		},
+		{
+			name:         "Non-superadmin rejected",
+			ctx:          normalCtx,
+			club:         &clubs.Club{Id: clubUUID, Status: clubs.StatusActive},
+			isSuperAdmin: false,
+			wantErrors:   true,
+		},
+		{
+			name:         "Club not found",
+			ctx:          superAdminCtx,
+			club:         nil,
+			isSuperAdmin: true,
+			wantErrors:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			club := tt.club
+			var clubCopy *clubs.Club
+			if club != nil {
+				c := *club
+				clubCopy = &c
+			}
+			repo := mockClubRepository{
+				findFunc: func(_ context.Context, _ string) (*clubs.Club, error) {
+					return clubCopy, nil
+				},
+			}
+			statusRepo := mockClubStatusRepo{
+				updateStatusFunc: func(_ context.Context, _, _ string) error { return tt.updateErr },
+			}
+			checker := mockRoleCheckerForClub{
+				isSuperAdminFunc: func(_ context.Context, _ string) (bool, error) {
+					return tt.isSuperAdmin, nil
+				},
+			}
+			verifier := mockSireneVerifier{
+				verifyFunc: func(_ context.Context, _ string) error { return nil },
+			}
+
+			svc := newFullTestClubService(repo, statusRepo, checker, verifier)
+			res, err := svc.SuspendClub(tt.ctx, &dto.SuspendClubRequest{ClubId: clubUUID.String()})
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			if tt.wantErrors {
+				assert.True(t, len(res.Errors) > 0)
+			} else {
+				assert.Empty(t, res.Errors)
+				assert.NotNil(t, res.Club)
+				assert.Equal(t, clubs.StatusSuspended, res.Club.Status)
 			}
 		})
 	}

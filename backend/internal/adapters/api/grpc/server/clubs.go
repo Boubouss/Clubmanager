@@ -75,3 +75,27 @@ func (s ClubManagerServiceServer) DeleteClub(ctx context.Context, req *proto.Del
 	}
 	return &proto.DeleteClubResponse{Ok: ok}, nil
 }
+
+func (s ClubManagerServiceServer) ValidateClub(ctx context.Context, req *proto.ValidateClubRequest) (*proto.ValidateClubResponse, error) {
+	res, err := s.csvc.ValidateClub(ctx, &dto.ValidateClubRequest{ClubId: req.ClubId})
+	if err != nil {
+		return nil, err
+	}
+	var club *proto.Club
+	if res.Club != nil {
+		club = clubProto(res.Club)
+	}
+	return &proto.ValidateClubResponse{Club: club, Errors: res.Errors}, nil
+}
+
+func (s ClubManagerServiceServer) SuspendClub(ctx context.Context, req *proto.SuspendClubRequest) (*proto.SuspendClubResponse, error) {
+	res, err := s.csvc.SuspendClub(ctx, &dto.SuspendClubRequest{ClubId: req.ClubId})
+	if err != nil {
+		return nil, err
+	}
+	var club *proto.Club
+	if res.Club != nil {
+		club = clubProto(res.Club)
+	}
+	return &proto.SuspendClubResponse{Club: club, Errors: res.Errors}, nil
+}

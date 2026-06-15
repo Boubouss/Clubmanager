@@ -1,0 +1,342 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/http/views/layout"
+	"clubmanager/internal/domain/clubs"
+	"clubmanager/internal/domain/events"
+)
+
+type judoCatGroup struct {
+	Key          string
+	Label        string
+	DisplayLabel string
+	Cats         []*events.JudoCategory
+}
+
+func groupedJudoCats(cats []*events.JudoCategory) []judoCatGroup {
+	order := []string{
+		"Eveil", "Poussinet", "Poussin",
+		"Benjamin Masculin", "Benjamin Féminin",
+		"Minime Masculin", "Minime Féminin",
+		"Cadet Masculin", "Cadet Féminin",
+		"Junior Masculin", "Junior Féminin",
+		"Senior Masculin", "Senior Féminin",
+		"Vétéran Masculin", "Vétéran Féminin",
+	}
+	keys := map[string]string{
+		"Eveil":             "eveil-mixed",
+		"Poussinet":         "poussinet-mixed",
+		"Poussin":           "poussin-mixed",
+		"Benjamin Masculin": "benjamin-man",
+		"Benjamin Féminin":  "benjamin-woman",
+		"Minime Masculin":   "minime-man",
+		"Minime Féminin":    "minime-woman",
+		"Cadet Masculin":    "cadet-man",
+		"Cadet Féminin":     "cadet-woman",
+		"Junior Masculin":   "junior-man",
+		"Junior Féminin":    "junior-woman",
+		"Senior Masculin":   "senior-man",
+		"Senior Féminin":    "senior-woman",
+		"Vétéran Masculin":  "veteran-man",
+		"Vétéran Féminin":   "veteran-woman",
+	}
+	displayLabels := map[string]string{
+		"Eveil":             "Eveil",
+		"Poussinet":         "Poussinet",
+		"Poussin":           "Poussin",
+		"Benjamin Masculin": "Benjamin",
+		"Benjamin Féminin":  "Benjamine",
+		"Minime Masculin":   "Minime",
+		"Minime Féminin":    "Minimette",
+		"Cadet Masculin":    "Cadet",
+		"Cadet Féminin":     "Cadette",
+		"Junior Masculin":   "Junior",
+		"Junior Féminin":    "Juniorette",
+		"Senior Masculin":   "Senior",
+		"Senior Féminin":    "Sénior Féminine",
+		"Vétéran Masculin":  "Vétéran",
+		"Vétéran Féminin":   "Vétérane",
+	}
+	groupMap := make(map[string][]*events.JudoCategory)
+	for _, cat := range cats {
+		var key string
+		if cat.Gender == "mixed" {
+			key = cat.AgeGroup
+		} else {
+			gLabel := "Masculin"
+			if cat.Gender == "woman" {
+				gLabel = "Féminin"
+			}
+			key = cat.AgeGroup + " " + gLabel
+		}
+		groupMap[key] = append(groupMap[key], cat)
+	}
+	var result []judoCatGroup
+	for _, label := range order {
+		if cs, ok := groupMap[label]; ok {
+			result = append(result, judoCatGroup{Key: keys[label], Label: label, DisplayLabel: displayLabels[label], Cats: cs})
+		}
+	}
+	return result
+}
+
+templ EventCreate(club *clubs.Club, judoCategories []*events.JudoCategory, errors map[string]string, csrfToken string) {
+	@layout.Page("Créer un événement — "+club.Name, true) {
+		<div class="max-w-4xl mx-auto">
+			<a href={ templ.SafeURL("/clubs/" + club.Id.String() + "/events") } class="inline-flex items-center gap-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface mb-lg no-underline">
+				<span class="material-symbols-outlined text-[16px]">arrow_back</span>
+				Retour aux événements
+			</a>
+
+			<div class="bg-surface rounded-xl card-shadow p-lg">
+				<h1 class="font-headline-md text-headline-md text-on-surface mb-lg">Créer un événement</h1>
+
+				<form id="event-form" method="POST" action={ templ.SafeURL("/clubs/" + club.Id.String() + "/events/create") } class="flex flex-col gap-md" onsubmit="prepareCategories(event)">
+					<input type="hidden" name="_csrf" value={ csrfToken }/>
+					<div id="category-inputs"></div>
+
+					<!-- Titre -->
+					<div class="flex flex-col gap-xs">
+						<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Titre</label>
+						<input
+							type="text" name="title" required
+							class="px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus transition-all"
+						/>
+						if errors["title"] != "" {
+							<p class="font-body-sm text-body-sm text-red-600">{ errors["title"] }</p>
+						}
+					</div>
+
+					<!-- Type -->
+					<div class="flex flex-col gap-xs">
+						<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Type</label>
+						<select name="type" id="event-type" required class="px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus transition-all">
+							<option value="">Choisir un type</option>
+							<option value="competition">Compétition</option>
+							<option value="stage">Stage</option>
+							<option value="autre">Autre</option>
+						</select>
+						if errors["type"] != "" {
+							<p class="font-body-sm text-body-sm text-red-600">{ errors["type"] }</p>
+						}
+					</div>
+
+					<!-- Lieu -->
+					<div class="flex flex-col gap-xs">
+						<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Lieu</label>
+						<input
+							type="text" name="location" required
+							class="px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus transition-all"
+						/>
+						if errors["location"] != "" {
+							<p class="font-body-sm text-body-sm text-red-600">{ errors["location"] }</p>
+						}
+					</div>
+
+					<!-- Description -->
+					<div class="flex flex-col gap-xs">
+						<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Description <span class="font-normal">(optionnel)</span></label>
+						<textarea
+							name="description" rows="3"
+							class="px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus transition-all resize-none"
+						></textarea>
+					</div>
+
+					<!-- Dates -->
+					<div class="grid grid-cols-1 sm:grid-cols-3 gap-md">
+						<div class="flex flex-col gap-xs">
+							<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Ouverture inscriptions</label>
+							<input type="datetime-local" name="registration_open_at" required class="px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus transition-all"/>
+							if errors["registration_open_at"] != "" {
+								<p class="font-body-sm text-body-sm text-red-600">{ errors["registration_open_at"] }</p>
+							}
+						</div>
+						<div class="flex flex-col gap-xs">
+							<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Clôture inscriptions</label>
+							<input type="datetime-local" name="registration_close_at" required class="px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus transition-all"/>
+							if errors["registration_close_at"] != "" {
+								<p class="font-body-sm text-body-sm text-red-600">{ errors["registration_close_at"] }</p>
+							}
+						</div>
+						<div class="flex flex-col gap-xs">
+							<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Date de l'événement</label>
+							<input type="date" name="date" required class="px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus transition-all"/>
+							if errors["date"] != "" {
+								<p class="font-body-sm text-body-sm text-red-600">{ errors["date"] }</p>
+							}
+						</div>
+					</div>
+
+					<!-- Max participants -->
+					<div class="flex flex-col gap-xs">
+						<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Participants max <span class="font-normal">(0 = illimité)</span></label>
+						<input
+							type="number" name="max_participants" value="0" min="0"
+							class="px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus transition-all"
+						/>
+					</div>
+
+					<!-- Catégories judo — tableau (compétition seulement) -->
+					<div id="categories-section" class="hidden flex flex-col gap-sm">
+						<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Catégories</label>
+						<div class="overflow-x-auto rounded-xl border border-outline-variant">
+							<table class="w-full text-left">
+								<thead>
+									<tr class="border-b border-outline-variant bg-surface-container-low">
+										<th class="px-md py-sm font-body-sm text-body-sm font-semibold text-on-surface-variant w-40">Groupe</th>
+										<th class="px-md py-sm font-body-sm text-body-sm font-semibold text-on-surface-variant">Catégories de poids</th>
+										<th class="px-md py-sm font-body-sm text-body-sm font-semibold text-on-surface-variant w-36">Pesée</th>
+									</tr>
+								</thead>
+								<tbody>
+									for i, group := range groupedJudoCats(judoCategories) {
+										<tr class={ "border-b border-outline-variant last:border-0 " + evenRowClass(i) } data-group={ group.Key }>
+											<!-- Group label + select-all checkbox -->
+											<td class="px-md py-sm">
+												<label class="flex items-center gap-xs cursor-pointer select-none">
+													<input
+														type="checkbox"
+														class="group-checkbox w-4 h-4 accent-primary cursor-pointer"
+														data-group={ group.Key }
+														onchange="toggleGroup(this)"
+													/>
+													<span class="font-body-sm text-body-sm font-semibold text-on-surface">{ group.DisplayLabel }</span>
+												</label>
+											</td>
+											<!-- Weight chips or mixed label -->
+											<td class="px-md py-sm">
+												if len(group.Cats) == 1 && group.Cats[0].Gender == "mixed" {
+													<!-- Mixed: hidden checkbox auto-selected with group -->
+													<input
+														type="checkbox"
+														class="cat-checkbox sr-only"
+														value={ group.Cats[0].Id.String() }
+														data-group={ group.Key }
+														onchange="onCatChange(this)"
+													/>
+													<span class="font-data-label text-data-label text-on-surface-variant italic">Mixte — sans catégorie de poids</span>
+												} else {
+													<div class="flex flex-wrap gap-xs">
+														for _, cat := range group.Cats {
+															<label class="cursor-pointer">
+																<input
+																	type="checkbox"
+																	class="cat-checkbox sr-only"
+																	value={ cat.Id.String() }
+																	data-group={ group.Key }
+																	onchange="onCatChange(this)"
+																/>
+																<span class="cat-chip inline-flex items-center px-sm py-1 rounded-full border border-outline-variant font-data-label text-data-label text-on-surface-variant bg-surface hover:border-primary hover:text-primary transition-colors cursor-pointer select-none">
+																	{ cat.WeightLabel }
+																</span>
+															</label>
+														}
+													</div>
+												}
+											</td>
+											<!-- Pesée par groupe -->
+											<td class="px-md py-sm">
+												<input
+													type="time"
+													class="weigh-in-input w-full px-3 py-2 bg-surface border border-outline-variant rounded-lg font-body-sm text-body-sm text-on-surface input-focus transition-all"
+													data-group={ group.Key }
+												/>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					</div>
+
+					<!-- Submit -->
+					<div class="flex justify-end mt-sm">
+						<button type="submit" class="inline-flex items-center gap-xs bg-primary text-on-primary px-lg py-3 rounded-lg font-bold font-body-md text-body-md hover:bg-primary-container transition-colors cursor-pointer border-none">
+							<span class="material-symbols-outlined text-[20px]">check</span>
+							Créer l'événement
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<script>
+			// Show/hide categories table on type change
+			document.getElementById('event-type').addEventListener('change', function() {
+				var sec = document.getElementById('categories-section');
+				sec.classList.toggle('hidden', this.value !== 'competition');
+			});
+
+			// Toggle all weight chips in a group
+			function toggleGroup(checkbox) {
+				var group = checkbox.dataset.group;
+				var cats = document.querySelectorAll('.cat-checkbox[data-group="' + group + '"]');
+				cats.forEach(function(cb) {
+					cb.checked = checkbox.checked;
+					updateChipStyle(cb);
+				});
+			}
+
+			// Update group checkbox state based on individual selections
+			function onCatChange(checkbox) {
+				updateChipStyle(checkbox);
+				var group = checkbox.dataset.group;
+				var all = document.querySelectorAll('.cat-checkbox[data-group="' + group + '"]');
+				var checked = document.querySelectorAll('.cat-checkbox[data-group="' + group + '"]:checked');
+				var groupCb = document.querySelector('.group-checkbox[data-group="' + group + '"]');
+				if (checked.length === 0) {
+					groupCb.checked = false;
+					groupCb.indeterminate = false;
+				} else if (checked.length === all.length) {
+					groupCb.checked = true;
+					groupCb.indeterminate = false;
+				} else {
+					groupCb.checked = false;
+					groupCb.indeterminate = true;
+				}
+			}
+
+			// Update chip visual style based on checked state
+			function updateChipStyle(cb) {
+				var chip = cb.closest('label').querySelector('.cat-chip');
+				if (cb.checked) {
+					chip.classList.remove('border-outline-variant', 'text-on-surface-variant', 'bg-surface');
+					chip.classList.add('border-primary', 'text-on-primary', 'bg-primary');
+				} else {
+					chip.classList.remove('border-primary', 'text-on-primary', 'bg-primary');
+					chip.classList.add('border-outline-variant', 'text-on-surface-variant', 'bg-surface');
+				}
+			}
+
+			// Before submit: generate hidden inputs from selected chips + group times
+			function prepareCategories(e) {
+				var container = document.getElementById('category-inputs');
+				container.innerHTML = '';
+
+				function addHidden(name, value) {
+					var input = document.createElement('input');
+					input.type = 'hidden';
+					input.name = name;
+					input.value = value;
+					container.appendChild(input);
+				}
+
+				var selected = document.querySelectorAll('.cat-checkbox:checked');
+				selected.forEach(function(cb) {
+					var group = cb.dataset.group;
+					var weighIn = document.querySelector('.weigh-in-input[data-group="' + group + '"]').value;
+					addHidden('category_judo_id', cb.value);
+					addHidden('category_weigh_in', weighIn);
+				});
+			}
+		</script>
+	}
+}
+
+func evenRowClass(i int) string {
+	if i%2 == 0 {
+		return ""
+	}
+	return "bg-surface-container-low/50"
+}
+

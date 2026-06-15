@@ -92,6 +92,9 @@ func (r licenceRepository) Search(ctx context.Context, params *domain.SearchPara
 		}
 		list = append(list, &l)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return list, nil
 }
 

@@ -2,6 +2,7 @@ package server
 
 import (
 	"clubmanager/internal/adapters/api/grpc/proto"
+	"clubmanager/internal/app/bootstrap"
 	"clubmanager/internal/app/middlewares"
 	"clubmanager/internal/app/services"
 	"context"
@@ -14,15 +15,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type ClubManagerServices struct {
-	UserService    services.UserService
-	ClubService    services.ClubService
-	MemberService  services.MemberService
-	LicenceService services.LicenceService
-	RoleService    services.RoleService
-	EventService   services.EventService
-}
-
 type ClubManagerServiceServer struct {
 	usvc services.UserService
 	csvc services.ClubService
@@ -30,10 +22,11 @@ type ClubManagerServiceServer struct {
 	lsvc services.LicenceService
 	rsvc services.RoleService
 	esvc services.EventService
+	psvc services.PostService
 	proto.UnimplementedClubManagerServiceServer
 }
 
-func NewClubManagerServiceServer(svc *ClubManagerServices) *ClubManagerServiceServer {
+func NewClubManagerServiceServer(svc *bootstrap.Services) *ClubManagerServiceServer {
 	return &ClubManagerServiceServer{
 		usvc: svc.UserService,
 		csvc: svc.ClubService,
@@ -41,6 +34,7 @@ func NewClubManagerServiceServer(svc *ClubManagerServices) *ClubManagerServiceSe
 		lsvc: svc.LicenceService,
 		rsvc: svc.RoleService,
 		esvc: svc.EventService,
+		psvc: svc.PostService,
 	}
 }
 
@@ -64,7 +58,7 @@ func recoveryInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, 
 }
 
 // MakeServerAndRun starts the gRPC server and blocks until ctx is cancelled (graceful shutdown).
-func MakeServerAndRun(ctx context.Context, addr string, svc *ClubManagerServices, tkm services.TokenManager) error {
+func MakeServerAndRun(ctx context.Context, addr string, svc *bootstrap.Services, tkm services.TokenManager) error {
 	clubManagerServer := NewClubManagerServiceServer(svc)
 
 	ln, err := net.Listen("tcp", addr)

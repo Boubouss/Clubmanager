@@ -14,12 +14,21 @@ message User {
 message Member {
   string id = 1;
   string user_id = 2;
+  // club_id and is_valid are populated from ClubMembership when available.
   string club_id = 3;
   string firstname = 4;
   string lastname = 5;
   string birthdate = 6;
   string gender = 7;
   bool is_valid = 8;
+  bool is_primary = 9;
+}
+
+message ClubMembership {
+  string id = 1;
+  string member_id = 2;
+  string club_id = 3;
+  bool is_valid = 4;
 }
 
 message AddMemberRequest {
@@ -29,6 +38,7 @@ message AddMemberRequest {
   string lastname = 4;
   string birthdate = 5;
   string gender = 6;
+  bool is_primary = 7;
 }
 
 message AddMemberResponse {
@@ -178,6 +188,7 @@ message Club {
   string postal_code = 6;
   string country = 7;
   string phonenumber = 8;
+  string status = 9;
 }
 
 message CreateClubRequest {
@@ -225,6 +236,24 @@ message DeleteClubRequest {
 
 message DeleteClubResponse {
   bool ok = 1;
+}
+
+message ValidateClubRequest {
+  string club_id = 1;
+}
+
+message ValidateClubResponse {
+  Club club = 1;
+  map<string, string> errors = 2;
+}
+
+message SuspendClubRequest {
+  string club_id = 1;
+}
+
+message SuspendClubResponse {
+  Club club = 1;
+  map<string, string> errors = 2;
 }
 
 message Role {
@@ -362,6 +391,8 @@ message GetEventResponse {
 
 message ListClubEventsRequest {
   string club_id = 1;
+  string from = 2;
+  int32 limit = 3;
 }
 
 message ListClubEventsResponse {
@@ -466,3 +497,66 @@ message CancelCarpoolOfferResponse { bool ok = 1; }
 
 message ListJudoCategoriesRequest {}
 message ListJudoCategoriesResponse { repeated JudoCategory categories = 1; }
+
+// ── Posts ─────────────────────────────────────────────────────────────────────
+
+message Post {
+  string id = 1;
+  string club_id = 2;
+  string author_id = 3;
+  string title = 4;
+  string content = 5;
+  string status = 6;
+  string visibility = 7;
+  string created_at = 8;
+  string updated_at = 9;
+}
+
+message CreatePostRequest {
+  string club_id = 1;
+  string title = 2;
+  string content = 3;
+  string visibility = 4;
+  string status = 5;
+}
+
+message CreatePostResponse {
+  Post post = 1;
+  map<string, string> errors = 2;
+}
+
+message PublishPostRequest { string id = 1; }
+
+message PublishPostResponse {
+  Post post = 1;
+  map<string, string> errors = 2;
+}
+
+message UpdatePostRequest {
+  string id = 1;
+  string title = 2;
+  string content = 3;
+  string visibility = 4;
+}
+
+message UpdatePostResponse {
+  Post post = 1;
+  map<string, string> errors = 2;
+}
+
+message DeletePostRequest { string id = 1; }
+message DeletePostResponse { bool ok = 1; }
+
+message GetClubPostsRequest {
+  string club_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message GetClubPostsResponse {
+  repeated Post posts = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+  map<string, string> errors = 5;
+}

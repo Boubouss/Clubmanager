@@ -8,6 +8,7 @@ import (
 
 type Config struct {
 	GRPCPort     string
+	HTTPPort     string
 	DBURL        string
 	JWTSecret    string
 	JWTTTLDays   int
@@ -18,6 +19,11 @@ func Load() (*Config, error) {
 	port := os.Getenv("GRPC_PORT")
 	if port == "" {
 		port = ":50051"
+	}
+
+	httpPort := os.Getenv("HTTP_PORT")
+	if httpPort == "" {
+		httpPort = ":8080"
 	}
 
 	dbURL := os.Getenv("DB_URL")
@@ -50,6 +56,7 @@ func Load() (*Config, error) {
 
 	return &Config{
 		GRPCPort:     port,
+		HTTPPort:     httpPort,
 		DBURL:        dbURL,
 		JWTSecret:    jwtSecret,
 		JWTTTLDays:   jwtTTLDays,

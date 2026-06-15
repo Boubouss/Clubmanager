@@ -164,12 +164,11 @@ var (
 	eventMember = &members.Member{
 		Id:        memberUUID, // reuse from member_service_test.go
 		UserId:    eventCreator,
-		ClubId:    eventClubId,
 		Firstname: "Jean",
 		Lastname:  "Dupont",
 		Birthdate: "2000-06-15",
 		Gender:    "man",
-		IsValid:   true,
+		IsPrimary: true,
 	}
 
 	activeLicence = &licences.Licence{

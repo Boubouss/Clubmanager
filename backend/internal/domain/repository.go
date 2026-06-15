@@ -38,5 +38,8 @@ func (s SearchParams) GetWhereClauses() (string, []any, error) {
     args = append(args, s.Fields[k])
   }
 
+  if len(clauses) == 0 {
+    return "1=1", args, nil
+  }
   return strings.Join(clauses, " "+s.Connector+" "), args, nil
 }

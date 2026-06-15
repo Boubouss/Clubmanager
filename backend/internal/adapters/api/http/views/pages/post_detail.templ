@@ -1,0 +1,98 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/http/views/layout"
+	"clubmanager/internal/domain/posts"
+	"github.com/google/uuid"
+)
+
+templ PostDetail(post *posts.Post, clubName string, isAuthor bool, canManage bool, isMember bool, csrfToken string) {
+	@layout.Page(post.Title, true) {
+		<div class="max-w-3xl mx-auto">
+			<a href={ templ.SafeURL("/clubs/" + post.ClubId.String() + "/posts") } class="inline-flex items-center gap-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface mb-lg no-underline">
+				<span class="material-symbols-outlined text-[16px]">arrow_back</span>
+				Retour aux actualités
+			</a>
+
+			<article class="bg-surface rounded-xl card-shadow p-lg">
+				<!-- Header -->
+				<div class="flex items-start justify-between gap-md mb-md">
+					<div class="flex-grow min-w-0">
+						<div class="flex items-center gap-xs mb-sm flex-wrap">
+							<span class={ "font-data-label text-data-label px-sm py-0.5 rounded-full " + postStatusClass(post.Status) }>
+								{ postStatusLabel(post.Status) }
+							</span>
+							if canManage {
+								<span class="font-data-label text-data-label text-on-surface-variant">
+									{ postVisibilityLabel(post.Visibility) }
+								</span>
+							}
+						</div>
+						<h1 class="font-headline-md text-headline-md text-on-surface">{ post.Title }</h1>
+						<p class="font-body-sm text-body-sm text-on-surface-variant mt-xs">{ clubName } · { formatPostDate(post.CreatedAt) }</p>
+					</div>
+
+					if isAuthor || canManage {
+						<div class="flex gap-xs flex-shrink-0 flex-wrap justify-end">
+							if isAuthor || canManage {
+								if post.Status == "draft" {
+									<form method="POST" action={ templ.SafeURL("/posts/" + post.Id.String() + "/publish") }>
+										<input type="hidden" name="_csrf" value={ csrfToken }/>
+										<button type="submit" class="inline-flex items-center gap-xs px-md py-2 bg-green-100 text-green-700 rounded-lg font-bold font-body-sm text-body-sm hover:bg-green-200 transition-colors cursor-pointer border-none">
+											<span class="material-symbols-outlined text-[16px]">publish</span>
+											Publier
+										</button>
+									</form>
+								} else {
+									<form method="POST" action={ templ.SafeURL("/posts/" + post.Id.String() + "/unpublish") }>
+										<input type="hidden" name="_csrf" value={ csrfToken }/>
+										<button type="submit" class="inline-flex items-center gap-xs px-md py-2 bg-surface-container text-on-surface-variant rounded-lg font-bold font-body-sm text-body-sm hover:bg-surface-container-high transition-colors cursor-pointer border border-outline-variant">
+											<span class="material-symbols-outlined text-[16px]">unpublished</span>
+											Brouillon
+										</button>
+									</form>
+								}
+							}
+							if post.Status == "draft" {
+								<a
+									href={ templ.SafeURL("/posts/" + post.Id.String() + "/edit") }
+									class="inline-flex items-center gap-xs px-md py-2 bg-surface-container text-on-surface rounded-lg font-bold font-body-sm text-body-sm hover:bg-surface-container-high transition-colors no-underline"
+								>
+									<span class="material-symbols-outlined text-[16px]">edit</span>
+									Modifier
+								</a>
+							}
+							if post.Status == "draft" {
+								<form id="delete-post-form" method="POST" action={ templ.SafeURL("/posts/" + post.Id.String() + "/delete") }>
+									<input type="hidden" name="_csrf" value={ csrfToken }/>
+									<button type="button" onclick="confirmDelete('delete-post-form', 'Supprimer ce post ? Cette action est irréversible.')" class="inline-flex items-center gap-xs px-md py-2 bg-red-100 text-red-700 rounded-lg font-bold font-body-sm text-body-sm hover:bg-red-200 transition-colors cursor-pointer border-none">
+										<span class="material-symbols-outlined text-[16px]">delete</span>
+										Supprimer
+									</button>
+								</form>
+							}
+						</div>
+					}
+				</div>
+
+				<!-- Lien vers l'événement si applicable -->
+				if post.EventId != uuid.Nil {
+					if canManage || isAuthor || isMember {
+						<a
+							href={ templ.SafeURL("/events/" + post.EventId.String()) }
+							class="inline-flex items-center gap-sm px-md py-sm bg-primary text-on-primary rounded-lg font-body-sm text-body-sm no-underline hover:bg-primary-container transition-colors mb-md"
+						>
+							<span class="material-symbols-outlined text-[18px]">event</span>
+							Voir l'événement associé
+						</a>
+					}
+				}
+
+				<!-- Contenu -->
+				<div class="border-t border-outline-variant pt-md">
+					<p class="font-body-md text-body-md text-on-surface whitespace-pre-wrap">{ post.Content }</p>
+				</div>
+			</article>
+		</div>
+	}
+}

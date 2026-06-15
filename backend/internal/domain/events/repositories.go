@@ -30,6 +30,7 @@ type CarpoolRepository interface {
 	RemovePassenger(ctx context.Context, offerId, memberId string) (bool, error)
 	CountPassengers(ctx context.Context, offerId string) (int, error)
 	IsPassenger(ctx context.Context, eventId, memberId string) (bool, error)
+	FindPassengersByEvent(ctx context.Context, eventId string) ([]*CarpoolPassenger, error)
 }
 
 type JudoCategoryRepository interface {

@@ -1,0 +1,147 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/http/views/layout"
+	"clubmanager/internal/domain/clubs"
+	"clubmanager/internal/domain/posts"
+	"fmt"
+	"github.com/google/uuid"
+)
+
+templ ClubDetail(club *clubs.Club, recentPosts []*posts.Post) {
+	@layout.Page(club.Name, true) {
+		<!-- Club hero -->
+		<div class="bg-surface rounded-xl p-lg card-shadow mb-lg relative overflow-hidden">
+			<div class="absolute top-0 right-0 w-64 h-64 bg-primary opacity-5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+			<div class="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-md">
+				<div>
+					<span class="inline-flex items-center gap-xs px-sm py-xs bg-secondary-container text-on-secondary-container rounded-full font-data-label text-data-label mb-sm">
+						<span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1;">verified</span>
+						Club vérifié
+					</span>
+					<h1 class="font-headline-xl text-headline-xl text-primary mb-xs">{ club.Name }</h1>
+					<div class="flex flex-wrap gap-md font-body-lg text-body-lg text-on-surface-variant">
+						<span class="flex items-center gap-xs">
+							<span class="material-symbols-outlined">location_on</span>
+							{ club.Address }, { club.PostalCode } { club.City }
+						</span>
+						if club.Phonenumber != "" {
+							<span class="flex items-center gap-xs">
+								<span class="material-symbols-outlined">call</span>
+								{ club.Phonenumber }
+							</span>
+						}
+					</div>
+				</div>
+				<span class={ "badge-" + club.Status }>{ club.Status }</span>
+			</div>
+		</div>
+
+		<!-- Actions rapides -->
+		<div class="flex gap-sm mb-lg">
+			<a
+				href={ templ.SafeURL("/clubs/" + club.Id.String() + "/events") }
+				class="flex-1 inline-flex items-center justify-center gap-xs bg-primary-container text-white px-md py-sm rounded-lg font-bold font-body-md text-body-md hover:brightness-110 transition-all no-underline"
+			>
+				<span class="material-symbols-outlined text-[20px]">event</span>
+				Événements
+			</a>
+			<a
+				href={ templ.SafeURL("/clubs/" + club.Id.String() + "/posts") }
+				class="flex-1 inline-flex items-center justify-center gap-xs bg-primary-container text-white px-md py-sm rounded-lg font-bold font-body-md text-body-md hover:brightness-110 transition-all no-underline"
+			>
+				<span class="material-symbols-outlined text-[20px]">newspaper</span>
+				Actualités
+			</a>
+			<a
+				href={ templ.SafeURL("/clubs/" + club.Id.String() + "/members") }
+				class="flex-1 inline-flex items-center justify-center gap-xs bg-surface-container-high text-on-surface px-md py-sm rounded-lg font-bold font-body-md text-body-md hover:bg-surface-variant transition-all no-underline border border-outline-variant"
+			>
+				<span class="material-symbols-outlined text-[20px]">group</span>
+				Membres
+			</a>
+		</div>
+
+		<!-- Fil d'actualités -->
+		<div class="flex flex-col gap-sm">
+			if len(recentPosts) == 0 {
+				<div class="bg-surface rounded-xl card-shadow p-xl text-center">
+					<span class="material-symbols-outlined text-[48px] text-outline opacity-40">dynamic_feed</span>
+					<p class="font-body-md text-body-md text-on-surface-variant mt-sm">Aucune actualité pour ce club.</p>
+				</div>
+			}
+
+			for _, p := range recentPosts {
+				<a href={ templ.SafeURL(postCardURL(p)) } class="bg-surface rounded-xl card-shadow card-hover transition-all flex gap-md items-center p-md no-underline group">
+					<div class={ "flex flex-col items-center justify-center px-md py-sm rounded-lg min-w-[60px] " + postCardDateBg(p) }>
+						<span class="font-data-label text-data-label text-on-tertiary-container uppercase tracking-wider">{ postDateMonth(postEffectiveTs(p)) }</span>
+						<span class="font-headline-md text-headline-md leading-none text-on-tertiary-container">{ postDateDay(postEffectiveTs(p)) }</span>
+					</div>
+					<div class="flex-grow min-w-0">
+						<div class="flex items-center gap-xs mb-xs">
+							<span class="inline-flex items-center gap-xs font-data-label text-data-label text-outline uppercase tracking-wider">
+								<span class="material-symbols-outlined text-[14px]">{ postCardIcon(p) }</span>
+								{ postCardLabel(p) }
+							</span>
+						</div>
+						<h4 class="font-bold font-body-lg text-body-lg text-primary truncate">{ p.Title }</h4>
+						<p class="font-body-sm text-body-sm text-on-surface-variant">{ formatPostDate(postEffectiveTs(p)) }</p>
+					</div>
+					<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors flex-shrink-0">chevron_right</span>
+				</a>
+			}
+		</div>
+	}
+}
+
+func postCardURL(p *posts.Post) string {
+	return "/posts/" + p.Id.String()
+}
+
+func postCardIcon(p *posts.Post) string {
+	if p.EventId != uuid.Nil {
+		return "event"
+	}
+	return "newspaper"
+}
+
+func postCardLabel(p *posts.Post) string {
+	if p.EventId != uuid.Nil {
+		return "Événement"
+	}
+	return "Actualité"
+}
+
+func postCardDateBg(p *posts.Post) string {
+	if p.EventId != uuid.Nil {
+		return "bg-tertiary-container"
+	}
+	return "bg-secondary-container"
+}
+
+func postEffectiveTs(p *posts.Post) string {
+	if p.EventId != uuid.Nil && p.EventDate != "" {
+		return p.EventDate
+	}
+	return p.CreatedAt
+}
+
+func postDateMonth(ts string) string {
+	m, _ := postDateParts(ts)
+	return m
+}
+
+func postDateDay(ts string) string {
+	_, d := postDateParts(ts)
+	return d
+}
+
+func postDateParts(ts string) (month, day string) {
+	if t, ok := parseDate(ts); ok {
+		return frMonths[t.Month()-1], fmt.Sprintf("%02d", t.Day())
+	}
+	if len(ts) >= 10 {
+		return ts[5:7], ts[8:10]
+	}
+	return "--", "--"
+}

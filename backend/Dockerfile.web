@@ -1,0 +1,32 @@
+FROM golang:1.25-alpine AS builder
+
+RUN apk add --no-cache nodejs npm
+RUN go install github.com/a-h/templ/cmd/templ@v0.3.1020
+
+WORKDIR /app/src
+
+COPY ./backend .
+
+# Install Node dependencies (tailwindcss)
+RUN npm install
+
+RUN go mod download
+
+# Generate templ files (needed before Tailwind so it can scan *_templ.go)
+RUN templ generate ./internal/adapters/api/http/views/...
+
+# Compile Tailwind CSS
+RUN ./node_modules/.bin/tailwindcss -i public/css/input.css -o public/css/main.css --minify
+
+RUN go build -o /clubmanager-web ./cmd/web/
+
+FROM alpine:latest
+
+WORKDIR /app
+
+COPY --from=builder /clubmanager-web .
+COPY --from=builder /app/src/public ./public
+
+EXPOSE 8080
+
+ENTRYPOINT ["/app/clubmanager-web"]

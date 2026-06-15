@@ -1,0 +1,102 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/http/views/layout"
+	"clubmanager/internal/domain/events"
+	"clubmanager/internal/domain/members"
+)
+
+templ CarpoolForm(ev *events.Event, myMembers []*members.Member, errors map[string]string, csrfToken string) {
+	@layout.Page("Proposer un covoiturage", true) {
+		<div class="max-w-xl mx-auto">
+			<a href={ templ.SafeURL("/events/" + ev.Id.String()) } class="inline-flex items-center gap-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface mb-lg no-underline">
+				<span class="material-symbols-outlined text-[16px]">arrow_back</span>
+				{ ev.Title }
+			</a>
+
+			<div class="bg-surface rounded-xl card-shadow p-lg">
+				<h1 class="font-headline-md text-headline-md text-on-surface mb-lg">Proposer un covoiturage</h1>
+
+				<form method="POST" action={ templ.SafeURL("/events/" + ev.Id.String() + "/carpools") } class="flex flex-col gap-md">
+					<input type="hidden" name="_csrf" value={ csrfToken }/>
+
+					if len(myMembers) > 1 {
+						<div class="flex flex-col gap-xs">
+							<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Profil conducteur</label>
+							<select name="member_id" class="px-4 py-2 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus">
+								for _, m := range myMembers {
+									<option value={ m.Id.String() }>{ m.Firstname } { m.Lastname }</option>
+								}
+							</select>
+						</div>
+					} else if len(myMembers) == 1 {
+						<input type="hidden" name="member_id" value={ myMembers[0].Id.String() }/>
+					}
+
+					<div class="flex flex-col gap-xs">
+						<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Lieu de départ</label>
+						<input
+							type="text"
+							name="departure_address"
+							placeholder="Ex : Parking de la mairie, 12 rue de la Paix"
+							class="px-4 py-2 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus"
+						/>
+						if err, ok := errors["departure_address"]; ok {
+							<p class="font-body-sm text-body-sm text-error">{ err }</p>
+						}
+					</div>
+
+					<div class="flex flex-col gap-xs">
+						<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Heure de départ</label>
+						<input
+							type="datetime-local"
+							name="departure_at"
+							class="px-4 py-2 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus"
+						/>
+						if err, ok := errors["departure_at"]; ok {
+							<p class="font-body-sm text-body-sm text-error">{ err }</p>
+						}
+					</div>
+
+					<div class="flex flex-col gap-xs">
+						<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Places disponibles</label>
+						<input
+							type="number"
+							name="available_seats"
+							min="1"
+							max="8"
+							value="3"
+							class="px-4 py-2 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus"
+						/>
+						if err, ok := errors["available_seats"]; ok {
+							<p class="font-body-sm text-body-sm text-error">{ err }</p>
+						}
+					</div>
+
+					if err, ok := errors["offer"]; ok {
+						<p class="font-body-sm text-body-sm text-error">{ err }</p>
+					}
+					if err, ok := errors["member"]; ok {
+						<p class="font-body-sm text-body-sm text-error">{ err }</p>
+					}
+
+					<div class="flex gap-sm justify-end pt-sm">
+						<a
+							href={ templ.SafeURL("/events/" + ev.Id.String()) }
+							class="inline-flex items-center gap-xs px-md py-sm bg-surface-container text-on-surface rounded-lg font-bold font-body-md text-body-md hover:bg-surface-container-high transition-colors no-underline border border-outline-variant"
+						>
+							Annuler
+						</a>
+						<button
+							type="submit"
+							class="inline-flex items-center gap-xs px-md py-sm bg-primary text-on-primary rounded-lg font-bold font-body-md text-body-md hover:bg-primary-container transition-colors cursor-pointer border-none"
+						>
+							<span class="material-symbols-outlined text-[18px]">directions_car</span>
+							Publier l'offre
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	}
+}

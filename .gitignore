@@ -1,2 +1,9 @@
 .env
 ROADMAP_BACKEND.txt
+.claude
+CLAUDE.md
+
+# Generated at Docker build time — never committed
+backend/internal/adapters/api/grpc/proto/*.pb.go
+backend/internal/adapters/api/http/views/**/*_templ.go
+backend/public/css/main.css

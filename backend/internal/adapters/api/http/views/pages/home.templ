@@ -1,0 +1,139 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/http/views/layout"
+	"clubmanager/internal/domain/clubs"
+	"github.com/google/uuid"
+)
+
+type RecentPost struct {
+	Id        string
+	EventId   string
+	EventDate string
+	Title     string
+	ClubName  string
+	CreatedAt string
+}
+
+func (p RecentPost) effectiveTs() string {
+	if p.hasEvent() && p.EventDate != "" {
+		return p.EventDate
+	}
+	return p.CreatedAt
+}
+
+func (p RecentPost) hasEvent() bool {
+	id, err := uuid.Parse(p.EventId)
+	return err == nil && id != uuid.Nil
+}
+
+func (p RecentPost) cardURL() string {
+	return "/posts/" + p.Id
+}
+
+func (p RecentPost) cardIcon() string {
+	if p.hasEvent() {
+		return "event"
+	}
+	return "newspaper"
+}
+
+func (p RecentPost) cardLabel() string {
+	if p.hasEvent() {
+		return "Événement · " + p.ClubName
+	}
+	return "Actualité · " + p.ClubName
+}
+
+func (p RecentPost) cardDateBg() string {
+	if p.hasEvent() {
+		return "bg-tertiary-container"
+	}
+	return "bg-secondary-container"
+}
+
+templ Home(userClubs []*clubs.Club, posts []RecentPost) {
+	@layout.Page("Tableau de bord", true) {
+		<!-- Hero banner -->
+		<section class="mb-lg">
+			<div class="relative overflow-hidden rounded-xl bg-primary-container p-lg text-on-primary shadow-card-md">
+				<div class="absolute top-0 right-0 -mr-12 -mt-12 opacity-10 pointer-events-none">
+					<span class="material-symbols-outlined" style="font-size:180px;font-variation-settings:'FILL' 1;">sports_martial_arts</span>
+				</div>
+				<div class="relative z-10">
+					<h1 class="font-headline-xl text-headline-xl text-white mb-xs">Tableau de bord</h1>
+					<p class="font-body-lg text-body-lg text-primary-fixed opacity-90 max-w-xl">
+						Retrouvez vos clubs, prochains événements et actualités en un coup d'œil.
+					</p>
+				</div>
+			</div>
+		</section>
+
+		<!-- Bento grid -->
+		<div class="grid grid-cols-1 lg:grid-cols-3 gap-md">
+			<!-- Left column: fil d'actualités -->
+			<div class="lg:col-span-2 flex flex-col gap-md">
+				<div class="flex items-center justify-between">
+					<h2 class="font-headline-md text-headline-md text-on-surface">Fil d'actualités</h2>
+				</div>
+				if len(posts) == 0 {
+					<div class="bg-surface rounded-xl card-shadow p-lg text-center py-12">
+						<span class="material-symbols-outlined text-[48px] text-outline opacity-40">dynamic_feed</span>
+						<p class="font-body-md text-body-md text-on-surface-variant mt-sm">Aucune actualité récente.</p>
+					</div>
+				} else {
+					<div class="flex flex-col gap-sm">
+						for _, p := range posts {
+							<a href={ templ.SafeURL(p.cardURL()) } class="bg-surface rounded-xl card-shadow card-hover transition-all flex gap-md items-center p-md no-underline group">
+								<div class={ "flex flex-col items-center justify-center px-md py-sm rounded-lg min-w-[60px] " + p.cardDateBg() }>
+									<span class="font-data-label text-data-label text-on-tertiary-container uppercase tracking-wider">{ postDateMonth(p.effectiveTs()) }</span>
+									<span class="font-headline-md text-headline-md leading-none text-on-tertiary-container">{ postDateDay(p.effectiveTs()) }</span>
+								</div>
+								<div class="flex-grow min-w-0">
+									<div class="flex items-center gap-xs mb-xs">
+										<span class="inline-flex items-center gap-xs font-data-label text-data-label text-outline uppercase tracking-wider">
+											<span class="material-symbols-outlined text-[14px]">{ p.cardIcon() }</span>
+											{ p.cardLabel() }
+										</span>
+									</div>
+									<h4 class="font-bold font-body-lg text-body-lg text-primary truncate">{ p.Title }</h4>
+									<p class="font-body-sm text-body-sm text-on-surface-variant">{ formatPostDate(p.effectiveTs()) }</p>
+								</div>
+								<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors flex-shrink-0">chevron_right</span>
+							</a>
+						}
+					</div>
+				}
+			</div>
+
+			<!-- Right column: mes clubs -->
+			<aside class="flex flex-col gap-md">
+				<div class="flex items-center justify-between">
+					<h2 class="font-headline-md text-headline-md text-on-surface">Mes clubs</h2>
+				</div>
+				if len(userClubs) == 0 {
+					<div class="bg-surface rounded-xl card-shadow p-md flex flex-col items-center text-center gap-sm py-8">
+						<span class="material-symbols-outlined text-[48px] text-outline opacity-40">group</span>
+						<p class="font-body-sm text-body-sm text-on-surface-variant">Vous n'êtes membre d'aucun club.</p>
+						<a href="/clubs" class="bg-secondary text-on-secondary px-md py-sm rounded-lg font-bold font-body-sm text-body-sm hover:scale-95 transition-transform no-underline">
+							Rejoindre un club
+						</a>
+					</div>
+				} else {
+					for _, cl := range userClubs {
+						<a href={ templ.SafeURL("/clubs/" + cl.Id.String()) } class="bg-surface p-md rounded-xl card-shadow card-hover flex items-center gap-md no-underline">
+							<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center flex-shrink-0">
+								<span class="material-symbols-outlined text-secondary text-[24px]">sports_martial_arts</span>
+							</div>
+							<div class="flex-grow min-w-0">
+								<h3 class="font-bold font-body-md text-body-md text-on-surface truncate">{ cl.Name }</h3>
+								<p class="font-body-sm text-body-sm text-on-surface-variant">{ cl.City }</p>
+							</div>
+							<span class={ "badge-" + cl.Status + " flex-shrink-0" }>{ cl.Status }</span>
+						</a>
+					}
+				}
+			</aside>
+		</div>
+	}
+}

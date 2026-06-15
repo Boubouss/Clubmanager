@@ -1,0 +1,20 @@
+package layout
+
+templ Base(title string) {
+	<!DOCTYPE html>
+	<html lang="fr" class="light">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ title } — ClubManager</title>
+			<link rel="preconnect" href="https://fonts.googleapis.com"/>
+			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"/>
+			<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"/>
+			<link rel="stylesheet" href="/public/css/main.css"/>
+			<script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
+		</head>
+		<body class="bg-background text-on-background min-h-screen flex flex-col antialiased" hx-boost="true">
+			{ children... }
+		</body>
+	</html>
+}

@@ -1,0 +1,535 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/grpc/dto"
+	"clubmanager/internal/adapters/api/http/views/layout"
+	"clubmanager/internal/domain/events"
+	"fmt"
+	"time"
+)
+
+func carpoolSeatClass(taken, total int) string {
+	if taken >= total {
+		return "bg-red-100 text-red-700"
+	}
+	return "bg-green-100 text-green-700"
+}
+
+func formatCarpoolTime(s string) string {
+	for _, layout := range []string{time.RFC3339, "2006-01-02 15:04:05-07", "2006-01-02 15:04:05+00"} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return fmt.Sprintf("%02d/%02d à %02dh%02d", t.Day(), t.Month(), t.Hour(), t.Minute())
+		}
+	}
+	return s
+}
+
+func ageGroupDisplayLabel(ageGroup, gender string) string {
+	key := ageGroup
+	if gender == "man" {
+		key += " Masculin"
+	} else if gender == "woman" {
+		key += " Féminin"
+	}
+	labels := map[string]string{
+		"Eveil":             "Eveil",
+		"Poussinet":         "Poussinet",
+		"Poussin":           "Poussin",
+		"Benjamin Masculin": "Benjamin",
+		"Benjamin Féminin":  "Benjamine",
+		"Minime Masculin":   "Minime",
+		"Minime Féminin":    "Minimette",
+		"Cadet Masculin":    "Cadet",
+		"Cadet Féminin":     "Cadette",
+		"Junior Masculin":   "Junior",
+		"Junior Féminin":    "Juniorette",
+		"Senior Masculin":   "Senior",
+		"Senior Féminin":    "Sénior Féminine",
+		"Vétéran Masculin":  "Vétéran",
+		"Vétéran Féminin":   "Vétérane",
+	}
+	if l, ok := labels[key]; ok {
+		return l
+	}
+	return key
+}
+
+func eventRoleLabel(role string) string {
+	switch role {
+	case "competitor":
+		return "Compétiteur"
+	case "coach":
+		return "Coach"
+	case "referee":
+		return "Arbitre"
+	case "accompanist":
+		return "Accompagnateur"
+	default:
+		return role
+	}
+}
+
+func genderLabel(g string) string {
+	switch g {
+	case "woman":
+		return "Féminin"
+	case "mixed":
+		return "Mixte"
+	default:
+		return "Masculin"
+	}
+}
+
+templ EventDetail(ev *events.Event, ageGroups []dto.AgeGroupRow, supervisorCount int, accompanistCount int, allParticipants []dto.ParticipantRow, isManager bool, csrfToken string, flashError string, carpoolOffers []dto.CarpoolOfferRow, canCreateOffer bool, myParticipations []dto.MyParticipationRow) {
+	@layout.Page(ev.Title, true) {
+		<div class="max-w-3xl mx-auto">
+			if flashError != "" {
+				<div class="flex items-center gap-sm px-md py-sm bg-red-50 border border-red-200 rounded-lg mb-md text-red-700 font-body-sm text-body-sm">
+					<span class="material-symbols-outlined text-[18px] flex-shrink-0">error</span>
+					{ flashError }
+				</div>
+			}
+			<a href={ templ.SafeURL("/clubs/" + ev.ClubId.String() + "/events") } class="inline-flex items-center gap-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface mb-lg no-underline">
+				<span class="material-symbols-outlined text-[16px]">arrow_back</span>
+				Retour aux événements
+			</a>
+
+			<!-- Event info card -->
+			<div class="bg-surface rounded-xl card-shadow p-lg mb-md">
+				<div class="flex items-start justify-between gap-md mb-md">
+					<div>
+						<div class="flex items-center gap-xs mb-xs flex-wrap">
+							<span class={ "font-data-label text-data-label px-sm py-0.5 rounded-full " + eventTypeBadgeClass(ev.Type) }>
+								{ eventTypeLabel(ev.Type) }
+							</span>
+							<span class={ "font-data-label text-data-label px-sm py-0.5 rounded-full " + eventStatusClass(ev.Status) }>
+								{ eventStatusLabel(ev.Status) }
+							</span>
+						</div>
+						<h1 class="font-headline-md text-headline-md text-on-surface">{ ev.Title }</h1>
+					</div>
+					if isManager {
+						<div class="flex gap-xs flex-shrink-0 flex-wrap justify-end">
+							if ev.Status == "open" {
+								<a href={ templ.SafeURL("/events/" + ev.Id.String() + "/join") } class="inline-flex items-center gap-xs px-md py-2 bg-primary text-on-primary rounded-lg font-bold font-body-sm text-body-sm hover:bg-primary-container transition-colors no-underline">
+									<span class="material-symbols-outlined text-[16px]">person_add</span>
+									Inscrire
+								</a>
+								<form method="POST" action={ templ.SafeURL("/events/" + ev.Id.String() + "/cancel") }>
+									<input type="hidden" name="_csrf" value={ csrfToken }/>
+									<button type="submit" class="inline-flex items-center gap-xs px-md py-2 bg-red-100 text-red-700 rounded-lg font-bold font-body-sm text-body-sm hover:bg-red-200 transition-colors cursor-pointer border-none">
+										<span class="material-symbols-outlined text-[16px]">cancel</span>
+										Annuler
+									</button>
+								</form>
+							}
+							if ev.Status == "draft" {
+								<a href={ templ.SafeURL("/events/" + ev.Id.String() + "/edit") } class="inline-flex items-center gap-xs px-md py-2 bg-surface-container text-on-surface rounded-lg font-bold font-body-sm text-body-sm hover:bg-surface-container-high transition-colors no-underline">
+									<span class="material-symbols-outlined text-[16px]">edit</span>
+									Modifier
+								</a>
+								<button
+									type="button"
+									onclick="document.getElementById('open-event-modal').classList.remove('hidden');document.getElementById('open-event-modal').classList.add('flex')"
+									class="inline-flex items-center gap-xs px-md py-2 bg-green-100 text-green-700 rounded-lg font-bold font-body-sm text-body-sm hover:bg-green-200 transition-colors cursor-pointer border-none"
+								>
+									<span class="material-symbols-outlined text-[16px]">lock_open</span>
+									Ouvrir
+								</button>
+								<form id="delete-event-form-draft" method="POST" action={ templ.SafeURL("/events/" + ev.Id.String() + "/delete") }>
+									<input type="hidden" name="_csrf" value={ csrfToken }/>
+									<button type="button" onclick="confirmDelete('delete-event-form-draft', 'Supprimer cet événement ? Cette action est irréversible.')" class="inline-flex items-center gap-xs px-md py-2 bg-red-600 text-white rounded-lg font-bold font-body-sm text-body-sm hover:bg-red-700 transition-colors cursor-pointer border-none">
+										<span class="material-symbols-outlined text-[16px]">delete</span>
+										Supprimer
+									</button>
+								</form>
+							}
+							if ev.Status == "cancelled" {
+								<form method="POST" action={ templ.SafeURL("/events/" + ev.Id.String() + "/reopen") }>
+									<input type="hidden" name="_csrf" value={ csrfToken }/>
+									<button type="submit" class="inline-flex items-center gap-xs px-md py-2 bg-surface-container text-on-surface rounded-lg font-bold font-body-sm text-body-sm hover:bg-surface-container-high transition-colors cursor-pointer border-none">
+										<span class="material-symbols-outlined text-[16px]">undo</span>
+										Remettre en brouillon
+									</button>
+								</form>
+								<form id="delete-event-form-cancelled" method="POST" action={ templ.SafeURL("/events/" + ev.Id.String() + "/delete") }>
+									<input type="hidden" name="_csrf" value={ csrfToken }/>
+									<button type="button" onclick="confirmDelete('delete-event-form-cancelled', 'Supprimer cet événement ? Cette action est irréversible.')" class="inline-flex items-center gap-xs px-md py-2 bg-red-600 text-white rounded-lg font-bold font-body-sm text-body-sm hover:bg-red-700 transition-colors cursor-pointer border-none">
+										<span class="material-symbols-outlined text-[16px]">delete</span>
+										Supprimer
+									</button>
+								</form>
+							}
+						</div>
+					}
+				</div>
+				<div class="grid grid-cols-2 sm:grid-cols-3 gap-md text-on-surface-variant font-body-sm text-body-sm">
+					<div class="flex items-center gap-xs">
+						<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+						{ formatEventDate(ev.Date) }
+					</div>
+					<div class="flex items-center gap-xs">
+						<span class="material-symbols-outlined text-[16px]">location_on</span>
+						{ ev.Location }
+					</div>
+					if ev.MaxParticipants > 0 {
+						<div class="flex items-center gap-xs">
+							<span class="material-symbols-outlined text-[16px]">group</span>
+							{ fmt.Sprintf("Max %d participants", ev.MaxParticipants) }
+						</div>
+					}
+					<div class="flex items-center gap-xs">
+						<span class="material-symbols-outlined text-[16px]">how_to_reg</span>
+						Du { formatEventDate(ev.RegistrationOpenAt) } au { formatEventDate(ev.RegistrationCloseAt) }
+					</div>
+				</div>
+				if ev.Description != "" {
+					<p class="mt-md font-body-md text-body-md text-on-surface-variant border-t border-outline-variant pt-md">{ ev.Description }</p>
+				}
+			</div>
+
+			<!-- Vue adhérent : mes inscriptions -->
+			if !isManager && len(myParticipations) > 0 {
+				<div class="bg-surface rounded-xl card-shadow p-lg mb-md">
+					<div class="flex items-center justify-between mb-md">
+						<h2 class="font-headline-sm text-headline-sm text-on-surface">Mes inscriptions</h2>
+						if ev.Status == "open" {
+							<a
+								href={ templ.SafeURL("/events/" + ev.Id.String() + "/join") }
+								class="inline-flex items-center gap-xs px-md py-2 bg-surface-container text-on-surface rounded-lg font-bold font-body-sm text-body-sm hover:bg-surface-container-high transition-colors no-underline border border-outline-variant"
+							>
+								<span class="material-symbols-outlined text-[16px]">person_add</span>
+								Inscrire un autre membre
+							</a>
+						}
+					</div>
+					<div class="flex flex-col gap-xs">
+						for _, row := range myParticipations {
+							<div class="flex items-center justify-between p-sm bg-surface-container-low rounded-lg gap-md">
+								<div class="flex items-center gap-sm">
+									<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center flex-shrink-0">
+										<span class="font-bold font-body-sm text-body-sm text-on-secondary-container">{ string([]rune(row.MemberName)[0:1]) }</span>
+									</div>
+									<div>
+										<p class="font-bold font-body-md text-body-md text-on-surface">{ row.MemberName }</p>
+										if row.CategoryName != "" {
+											<p class="font-body-sm text-body-sm text-on-surface-variant">{ row.CategoryName }</p>
+										} else {
+											<p class="font-body-sm text-body-sm text-on-surface-variant">{ eventRoleLabel(row.Role) }</p>
+										}
+									</div>
+								</div>
+								if row.WeighInAt != "" || row.StartsAt != "" {
+									<div class="flex flex-col items-end gap-xs flex-shrink-0">
+										if row.WeighInAt != "" {
+											<span class="flex items-center gap-xs font-body-sm text-body-sm text-on-surface-variant">
+												<span class="material-symbols-outlined text-[14px]">scale</span>
+												Pesée { formatCarpoolTime(row.WeighInAt) }
+											</span>
+										}
+										if row.StartsAt != "" {
+											<span class="flex items-center gap-xs font-body-sm text-body-sm text-on-surface-variant">
+												<span class="material-symbols-outlined text-[14px]">sports_martial_arts</span>
+												Début { formatCarpoolTime(row.StartsAt) }
+											</span>
+										}
+									</div>
+								}
+							</div>
+						}
+					</div>
+				</div>
+			}
+
+			<!-- Vue adhérent sans inscription : bouton rejoindre -->
+			if !isManager && len(myParticipations) == 0 && ev.Status == "open" {
+				<div class="bg-surface rounded-xl card-shadow p-lg mb-md text-center">
+					<a
+						href={ templ.SafeURL("/events/" + ev.Id.String() + "/join") }
+						class="inline-flex items-center gap-xs px-md py-2 bg-primary text-on-primary rounded-lg font-bold font-body-sm text-body-sm hover:bg-primary-container transition-colors no-underline"
+					>
+						<span class="material-symbols-outlined text-[16px]">person_add</span>
+						S'inscrire à l'événement
+					</a>
+				</div>
+			}
+
+			<!-- Age groups (competition only, managers) -->
+			if ev.Type == "competition" {
+				if isManager && len(ageGroups) > 0 {
+					<div class="bg-surface rounded-xl card-shadow p-lg mb-md">
+						<h2 class="font-headline-sm text-headline-sm text-on-surface mb-md">Compétiteurs par catégorie d'âge</h2>
+						<div class="flex flex-col gap-xs">
+							for _, ag := range ageGroups {
+								<div class="flex items-center justify-between p-sm bg-surface-container-low rounded-lg">
+									<div class="flex items-center gap-sm">
+										<span class="material-symbols-outlined text-[20px] text-primary">sports_martial_arts</span>
+										<span class="font-body-md text-body-md text-on-surface font-semibold">{ ageGroupDisplayLabel(ag.AgeGroup, ag.Gender) }</span>
+										<span class="font-data-label text-data-label text-on-surface-variant">
+											{ fmt.Sprintf("%d inscrit(s)", ag.ParticipantCount) }
+										</span>
+									</div>
+									<button
+										type="button"
+										class="inline-flex items-center gap-xs px-sm py-xs bg-primary-container text-white rounded-lg font-bold font-body-sm text-body-sm hover:brightness-110 transition-colors border-none cursor-pointer"
+										hx-get={ "/events/" + ev.Id.String() + "/participants?age_group=" + ag.AgeGroup + "&gender=" + ag.Gender }
+										hx-target="#modal-content"
+										hx-swap="innerHTML"
+										onclick="document.getElementById('participants-modal').classList.remove('hidden')"
+									>
+										<span class="material-symbols-outlined text-[16px]">group</span>
+										Voir
+									</button>
+								</div>
+							}
+						</div>
+					</div>
+				}
+				if isManager && (supervisorCount > 0 || accompanistCount > 0) {
+					<div class="bg-surface rounded-xl card-shadow p-lg mb-md">
+						<h2 class="font-headline-sm text-headline-sm text-on-surface mb-md">Encadrement &amp; accompagnement</h2>
+						<div class="flex flex-col gap-xs">
+							if supervisorCount > 0 {
+								<div class="flex items-center justify-between p-sm bg-surface-container-low rounded-lg">
+									<div class="flex items-center gap-sm">
+										<span class="material-symbols-outlined text-[20px] text-secondary">school</span>
+										<span class="font-body-md text-body-md text-on-surface font-semibold">Encadrants</span>
+										<span class="font-data-label text-data-label text-on-surface-variant">
+											{ fmt.Sprintf("%d inscrit(s)", supervisorCount) }
+										</span>
+									</div>
+									<button
+										type="button"
+										class="inline-flex items-center gap-xs px-sm py-xs bg-primary-container text-white rounded-lg font-bold font-body-sm text-body-sm hover:brightness-110 transition-colors border-none cursor-pointer"
+										hx-get={ "/events/" + ev.Id.String() + "/participants?role=coach,referee" }
+										hx-target="#modal-content"
+										hx-swap="innerHTML"
+										onclick="document.getElementById('participants-modal').classList.remove('hidden')"
+									>
+										<span class="material-symbols-outlined text-[16px]">group</span>
+										Voir
+									</button>
+								</div>
+							}
+							if accompanistCount > 0 {
+								<div class="flex items-center justify-between p-sm bg-surface-container-low rounded-lg">
+									<div class="flex items-center gap-sm">
+										<span class="material-symbols-outlined text-[20px] text-tertiary">directions_car</span>
+										<span class="font-body-md text-body-md text-on-surface font-semibold">Accompagnateurs</span>
+										<span class="font-data-label text-data-label text-on-surface-variant">
+											{ fmt.Sprintf("%d inscrit(s)", accompanistCount) }
+										</span>
+									</div>
+									<button
+										type="button"
+										class="inline-flex items-center gap-xs px-sm py-xs bg-primary-container text-white rounded-lg font-bold font-body-sm text-body-sm hover:brightness-110 transition-colors border-none cursor-pointer"
+										hx-get={ "/events/" + ev.Id.String() + "/participants?role=accompanist" }
+										hx-target="#modal-content"
+										hx-swap="innerHTML"
+										onclick="document.getElementById('participants-modal').classList.remove('hidden')"
+									>
+										<span class="material-symbols-outlined text-[16px]">group</span>
+										Voir
+									</button>
+								</div>
+							}
+						</div>
+					</div>
+				}
+
+				<!-- Modal overlay (shared) -->
+				<div id="participants-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-md" onclick="if(event.target===this)this.classList.add('hidden')">
+					<div class="bg-surface rounded-xl card-shadow w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
+						<div class="flex items-center justify-between p-md border-b border-outline-variant flex-shrink-0">
+							<h3 class="font-headline-sm text-headline-sm text-on-surface">Participants</h3>
+							<button
+								type="button"
+								class="material-symbols-outlined text-on-surface-variant hover:text-on-surface cursor-pointer border-none bg-transparent"
+								onclick="document.getElementById('participants-modal').classList.add('hidden')"
+							>close</button>
+						</div>
+						<div id="modal-content" class="overflow-y-auto p-md">
+							<p class="font-body-md text-body-md text-on-surface-variant text-center py-md">Chargement...</p>
+						</div>
+					</div>
+				</div>
+			}
+
+			<!-- Participants (non-competition events, managers only) -->
+			if ev.Type != "competition" && isManager {
+				<div class="bg-surface rounded-xl card-shadow p-lg">
+					<h2 class="font-headline-sm text-headline-sm text-on-surface mb-md">
+						Participants ({ fmt.Sprintf("%d", len(allParticipants)) })
+					</h2>
+					if len(allParticipants) == 0 {
+						<p class="font-body-md text-body-md text-on-surface-variant text-center py-md">Aucun participant pour le moment.</p>
+					} else {
+						<div class="overflow-x-auto">
+							<table class="w-full">
+								<thead>
+									<tr class="border-b border-outline-variant">
+										<th class="text-left px-md py-sm font-body-sm text-body-sm font-semibold text-on-surface-variant">Membre</th>
+										<th class="text-left px-md py-sm font-body-sm text-body-sm font-semibold text-on-surface-variant">Rôle</th>
+										if isManager {
+											<th class="py-sm"></th>
+										}
+									</tr>
+								</thead>
+								<tbody>
+									for _, row := range allParticipants {
+										<tr class="border-b border-outline-variant last:border-0 hover:bg-surface-container-low transition-colors">
+											<td class="px-md py-sm font-body-md text-body-md text-on-surface font-bold">{ row.MemberName }</td>
+											<td class="px-md py-sm">
+												<span class="font-data-label text-data-label bg-primary-container text-on-primary-container px-sm py-0.5 rounded-full">{ eventRoleLabel(row.Participant.Role) }</span>
+											</td>
+											if isManager {
+												<td class="px-md py-sm text-right">
+													<form method="POST" action={ templ.SafeURL("/events/" + ev.Id.String() + "/remove-participant") }>
+														<input type="hidden" name="_csrf" value={ csrfToken }/>
+														<input type="hidden" name="member_id" value={ row.Participant.MemberId.String() }/>
+														<button type="submit" class="inline-flex items-center gap-xs px-xs py-0.5 bg-red-100 text-red-700 rounded font-body-sm text-body-sm hover:bg-red-200 transition-colors cursor-pointer border-none text-[12px]">
+															<span class="material-symbols-outlined text-[14px]">person_remove</span>
+															Retirer
+														</button>
+													</form>
+												</td>
+											}
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</div>
+			}
+			<!-- Covoiturage -->
+			if ev.Status == "open" {
+				<div class="bg-surface rounded-xl card-shadow p-lg mt-md">
+					<div class="flex items-center justify-between mb-md">
+						<h2 class="font-headline-sm text-headline-sm text-on-surface">Covoiturage</h2>
+						if canCreateOffer {
+							<a
+								href={ templ.SafeURL("/events/" + ev.Id.String() + "/carpools/new") }
+								class="inline-flex items-center gap-xs px-md py-2 bg-primary text-on-primary rounded-lg font-bold font-body-sm text-body-sm hover:bg-primary-container transition-colors no-underline"
+							>
+								<span class="material-symbols-outlined text-[16px]">directions_car</span>
+								Proposer
+							</a>
+						}
+					</div>
+					if len(carpoolOffers) == 0 {
+						<p class="font-body-md text-body-md text-on-surface-variant text-center py-md">Aucune offre de covoiturage pour le moment.</p>
+					} else {
+						<div class="flex flex-col gap-sm">
+							for _, row := range carpoolOffers {
+								<div class="flex items-center justify-between gap-md p-sm bg-surface-container-low rounded-lg">
+									<div class="flex-1 min-w-0">
+										<div class="flex items-center gap-sm flex-wrap">
+											<p class="font-bold font-body-md text-body-md text-on-surface">{ row.DriverName }</p>
+											<span class={ "font-data-label text-data-label px-sm py-0.5 rounded-full " + carpoolSeatClass(row.PassengerCount, row.Offer.AvailableSeats) }>
+												{ fmt.Sprintf("%d/%d place(s)", row.PassengerCount, row.Offer.AvailableSeats) }
+											</span>
+										</div>
+										<div class="flex items-center gap-md flex-wrap mt-xs">
+											<span class="flex items-center gap-xs font-body-sm text-body-sm text-on-surface-variant">
+												<span class="material-symbols-outlined text-[14px]">location_on</span>
+												{ row.Offer.DepartureAddress }
+											</span>
+											<span class="flex items-center gap-xs font-body-sm text-body-sm text-on-surface-variant">
+												<span class="material-symbols-outlined text-[14px]">schedule</span>
+												{ formatCarpoolTime(row.Offer.DepartureAt) }
+											</span>
+										</div>
+									</div>
+									<div class="flex-shrink-0">
+										if row.IsOwnOffer {
+											<form id={ "cancel-carpool-" + row.Offer.Id.String() } method="POST" action={ templ.SafeURL("/carpools/" + row.Offer.Id.String() + "/cancel") }>
+												<input type="hidden" name="_csrf" value={ csrfToken }/>
+												<input type="hidden" name="event_id" value={ ev.Id.String() }/>
+												<button type="button" data-form-id={ "cancel-carpool-" + row.Offer.Id.String() } data-message="Annuler votre offre de covoiturage ? Les passagers seront retirés." onclick="confirmDelete(this.dataset.formId, this.dataset.message)" class="inline-flex items-center gap-xs px-sm py-1.5 bg-red-100 text-red-700 rounded-lg font-bold font-body-sm text-body-sm hover:bg-red-200 transition-colors cursor-pointer border-none">
+													<span class="material-symbols-outlined text-[16px]">cancel</span>
+													Annuler
+												</button>
+											</form>
+										} else if row.IsPassenger {
+											<form method="POST" action={ templ.SafeURL("/carpools/" + row.Offer.Id.String() + "/leave") }>
+												<input type="hidden" name="_csrf" value={ csrfToken }/>
+												<input type="hidden" name="event_id" value={ ev.Id.String() }/>
+												<button type="submit" class="inline-flex items-center gap-xs px-sm py-1.5 bg-surface-container text-on-surface-variant rounded-lg font-bold font-body-sm text-body-sm hover:bg-surface-container-high transition-colors cursor-pointer border border-outline-variant">
+													<span class="material-symbols-outlined text-[16px]">logout</span>
+													Quitter
+												</button>
+											</form>
+										} else if canCreateOffer && row.PassengerCount < row.Offer.AvailableSeats {
+											<form method="POST" action={ templ.SafeURL("/events/" + ev.Id.String() + "/carpools/" + row.Offer.Id.String() + "/join") }>
+												<input type="hidden" name="_csrf" value={ csrfToken }/>
+												<button type="submit" class="inline-flex items-center gap-xs px-sm py-1.5 bg-primary text-on-primary rounded-lg font-bold font-body-sm text-body-sm hover:bg-primary-container transition-colors cursor-pointer border-none">
+													<span class="material-symbols-outlined text-[16px]">directions_car</span>
+													Rejoindre
+												</button>
+											</form>
+										}
+									</div>
+								</div>
+							}
+						</div>
+					}
+				</div>
+			}
+		</div>
+
+		<!-- Modal ouverture événement -->
+		if isManager {
+			<div id="open-event-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40" onclick="if(event.target===this){this.classList.add('hidden');this.classList.remove('flex')}">
+				<div class="bg-surface rounded-xl card-shadow w-full max-w-sm mx-4 p-lg">
+					<div class="flex items-center justify-between mb-md">
+						<h3 class="font-headline-sm text-headline-sm text-on-surface">Ouvrir les inscriptions</h3>
+						<button
+							type="button"
+							class="material-symbols-outlined text-on-surface-variant hover:text-on-surface cursor-pointer border-none bg-transparent"
+							onclick="document.getElementById('open-event-modal').classList.add('hidden');document.getElementById('open-event-modal').classList.remove('flex')"
+						>close</button>
+					</div>
+					<p class="font-body-sm text-body-sm text-on-surface-variant mb-md">
+						Un post d'annonce sera automatiquement publié. Choisissez sa visibilité :
+					</p>
+					<form method="POST" action={ templ.SafeURL("/events/" + ev.Id.String() + "/open") } class="flex flex-col gap-md">
+						<input type="hidden" name="_csrf" value={ csrfToken }/>
+						<div class="flex flex-col gap-xs">
+							<label class="flex items-center gap-sm cursor-pointer p-sm bg-surface-container rounded-lg">
+								<input type="radio" name="visibility" value="adherent" checked class="accent-primary"/>
+								<div>
+									<p class="font-body-md text-body-md text-on-surface font-semibold">Membres uniquement</p>
+									<p class="font-body-sm text-body-sm text-on-surface-variant">Visible uniquement par les membres du club</p>
+								</div>
+							</label>
+							<label class="flex items-center gap-sm cursor-pointer p-sm bg-surface-container rounded-lg">
+								<input type="radio" name="visibility" value="public" class="accent-primary"/>
+								<div>
+									<p class="font-body-md text-body-md text-on-surface font-semibold">Public</p>
+									<p class="font-body-sm text-body-sm text-on-surface-variant">Visible par tous</p>
+								</div>
+							</label>
+						</div>
+						<div class="flex gap-sm justify-end">
+							<button
+								type="button"
+								onclick="document.getElementById('open-event-modal').classList.add('hidden');document.getElementById('open-event-modal').classList.remove('flex')"
+								class="inline-flex items-center gap-xs px-md py-sm bg-surface-container text-on-surface rounded-lg font-bold font-body-sm text-body-sm hover:bg-surface-container-high cursor-pointer border border-outline-variant"
+							>
+								Annuler
+							</button>
+							<button
+								type="submit"
+								class="inline-flex items-center gap-xs px-md py-sm bg-green-600 text-white rounded-lg font-bold font-body-sm text-body-sm hover:bg-green-700 cursor-pointer border-none"
+							>
+								<span class="material-symbols-outlined text-[16px]">lock_open</span>
+								Confirmer l'ouverture
+							</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		}
+	}
+}

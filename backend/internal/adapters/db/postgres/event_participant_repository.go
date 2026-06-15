@@ -66,6 +66,9 @@ func (r eventParticipantRepository) FindByEvent(ctx context.Context, eventId str
 		}
 		list = append(list, p)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return list, nil
 }
 

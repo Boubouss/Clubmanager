@@ -1,0 +1,438 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/grpc/dto"
+	"clubmanager/internal/adapters/api/http/views/layout"
+	"clubmanager/internal/domain/clubs"
+	"fmt"
+	"strconv"
+)
+
+func staffContactRoleLabel(role string) string {
+	switch role {
+	case "president":
+		return "Président"
+	case "staff":
+		return "Staff"
+	case "coach":
+		return "Coach"
+	default:
+		return role
+	}
+}
+
+func roleLabel(role string) string {
+	switch role {
+	case "president":
+		return "Président"
+	case "staff":
+		return "Staff"
+	case "coach":
+		return "Coach"
+	case "associate":
+		return "Adhérent"
+	default:
+		return ""
+	}
+}
+
+templ MembersList(club *clubs.Club, members []dto.MemberWithMembership, total, page, pageSize int, roleByUserId map[string]string, roleIdByUserId map[string]string, canManage bool, isPresident bool, staffContacts []dto.StaffContact, csrfToken string) {
+	@layout.Page("Membres — "+club.Name, true) {
+		<!-- Header -->
+		<div class="flex items-center justify-between mb-lg">
+			<div>
+				<a href={ templ.SafeURL("/clubs/" + club.Id.String()) } class="inline-flex items-center gap-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface mb-sm no-underline">
+					<span class="material-symbols-outlined text-[16px]">arrow_back</span>
+					{ club.Name }
+				</a>
+				<h1 class="font-headline-lg text-headline-lg text-on-surface">Membres</h1>
+				if !canManage {
+					<p class="font-body-sm text-body-sm text-on-surface-variant mt-xs">Vos demandes d'adhésion pour ce club.</p>
+				}
+			</div>
+			if canManage {
+				<a
+					href={ templ.SafeURL("/clubs/" + club.Id.String() + "/members/add") }
+					class="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-3 rounded-lg font-bold font-body-md text-body-md hover:bg-primary-container transition-colors no-underline"
+				>
+					<span class="material-symbols-outlined text-[20px]">person_add</span>
+					Ajouter un membre
+				</a>
+			} else {
+				<div class="flex gap-xs">
+					if len(staffContacts) > 0 {
+						<button
+							type="button"
+							onclick="document.getElementById('contacts-modal').classList.remove('hidden');document.getElementById('contacts-modal').classList.add('flex')"
+							class="inline-flex items-center gap-xs bg-surface-container text-on-surface px-md py-3 rounded-lg font-bold font-body-md text-body-md hover:bg-surface-container-high transition-colors cursor-pointer border border-outline-variant"
+						>
+							<span class="material-symbols-outlined text-[20px]">contacts</span>
+							Contacts
+						</button>
+					}
+					<a
+						href={ templ.SafeURL("/clubs/" + club.Id.String() + "/join") }
+						class="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-3 rounded-lg font-bold font-body-md text-body-md hover:bg-primary-container transition-colors no-underline"
+					>
+						<span class="material-symbols-outlined text-[20px]">person_add</span>
+						Faire une demande
+					</a>
+				</div>
+			}
+		</div>
+
+		<div id="members-list">
+			@MembersTable(club, members, roleByUserId, roleIdByUserId, canManage, isPresident, csrfToken)
+		</div>
+
+		if total > pageSize {
+			<div class="flex items-center justify-center gap-sm bg-surface card-shadow rounded-full px-md py-sm border border-outline-variant mx-auto w-fit mt-lg">
+				if page > 1 {
+					<a
+						href={ templ.SafeURL(fmt.Sprintf("/clubs/%s/members?page=%d", club.Id.String(), page-1)) }
+						class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-surface-container text-on-surface hover:bg-surface-container-high no-underline transition-colors"
+					>
+						<span class="material-symbols-outlined text-[20px]">chevron_left</span>
+					</a>
+				} else {
+					<span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-outline opacity-40">
+						<span class="material-symbols-outlined text-[20px]">chevron_left</span>
+					</span>
+				}
+				<span class="font-body-sm text-body-sm text-on-surface-variant px-xs">
+					{ fmt.Sprintf("%d / %d", page, (total+pageSize-1)/pageSize) }
+				</span>
+				if page*pageSize < total {
+					<a
+						href={ templ.SafeURL(fmt.Sprintf("/clubs/%s/members?page=%d", club.Id.String(), page+1)) }
+						class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-surface-container text-on-surface hover:bg-surface-container-high no-underline transition-colors"
+					>
+						<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+					</a>
+				} else {
+					<span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-outline opacity-40">
+						<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+					</span>
+				}
+			</div>
+		}
+
+		<!-- Modale contacts (associates) -->
+		if len(staffContacts) > 0 {
+			<div id="contacts-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40" onclick="if(event.target===this){this.classList.add('hidden');this.classList.remove('flex')}">
+				<div class="bg-surface rounded-xl card-shadow w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col overflow-hidden">
+					<div class="flex items-center justify-between p-md border-b border-outline-variant flex-shrink-0">
+						<h3 class="font-headline-sm text-headline-sm text-on-surface">Contacts du club</h3>
+						<button
+							type="button"
+							class="material-symbols-outlined text-on-surface-variant hover:text-on-surface cursor-pointer border-none bg-transparent"
+							onclick="document.getElementById('contacts-modal').classList.add('hidden');document.getElementById('contacts-modal').classList.remove('flex')"
+						>close</button>
+					</div>
+					<div class="overflow-y-auto p-md flex flex-col gap-sm">
+						for _, sc := range staffContacts {
+							<div class="flex items-center justify-between p-sm bg-surface-container-low rounded-lg">
+								<div class="flex items-center gap-sm">
+									<div class="w-9 h-9 rounded-full bg-secondary-container flex items-center justify-center flex-shrink-0">
+										<span class="font-bold font-body-sm text-body-sm text-on-secondary-container">{ string([]rune(sc.Firstname)[0:1]) }</span>
+									</div>
+									<div>
+										<p class="font-body-md text-body-md text-on-surface font-semibold">{ sc.Firstname } { sc.Lastname }</p>
+										<span class="font-data-label text-data-label text-on-surface-variant">{ staffContactRoleLabel(sc.Role) }</span>
+									</div>
+								</div>
+								<div class="flex flex-col items-end gap-xs">
+									if sc.Email != "" {
+										<a href={ templ.SafeURL("mailto:" + sc.Email) } class="inline-flex items-center gap-xs font-body-sm text-body-sm text-secondary no-underline">
+											<span class="material-symbols-outlined text-[14px]">mail</span>
+											{ sc.Email }
+										</a>
+									}
+									if sc.Phone != "" {
+										<a href={ templ.SafeURL("tel:" + sc.Phone) } class="inline-flex items-center gap-xs font-body-sm text-body-sm text-secondary no-underline">
+											<span class="material-symbols-outlined text-[14px]">call</span>
+											{ sc.Phone }
+										</a>
+									}
+								</div>
+							</div>
+						}
+					</div>
+				</div>
+			</div>
+		}
+
+		<!-- Modale gestion membre -->
+		if canManage {
+			<div id="member-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40" onclick="if(event.target===this)closeModal()">
+				<div class="bg-surface rounded-xl card-shadow p-lg w-full max-w-sm mx-4">
+					<div class="flex items-center justify-between mb-md">
+						<h2 id="modal-member-name" class="font-headline-sm text-headline-sm text-on-surface"></h2>
+						<button type="button" onclick="closeModal()" class="text-outline hover:text-on-surface transition-colors cursor-pointer border-none bg-transparent">
+							<span class="material-symbols-outlined">close</span>
+						</button>
+					</div>
+
+					<!-- Infos de contact -->
+					<div id="modal-contact-section" class="flex flex-col gap-xs mb-md hidden">
+						<p class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Contact</p>
+						<a id="modal-email-link" href="#" class="inline-flex items-center gap-xs font-body-sm text-body-sm text-secondary no-underline">
+							<span class="material-symbols-outlined text-[16px]">mail</span>
+							<span id="modal-email"></span>
+						</a>
+						<a id="modal-phone-link" href="#" class="inline-flex items-center gap-xs font-body-sm text-body-sm text-secondary no-underline">
+							<span class="material-symbols-outlined text-[16px]">call</span>
+							<span id="modal-phone"></span>
+						</a>
+					</div>
+
+					if isPresident {
+						<!-- Assigner un rôle -->
+						<form
+							id="modal-assign-form"
+							method="POST"
+							hx-target="#members-list"
+							hx-swap="innerHTML"
+							class="flex flex-col gap-sm mb-md"
+						>
+							<input type="hidden" name="_csrf" value={ csrfToken }/>
+							<input type="hidden" name="target_user_id" id="modal-target-user-id"/>
+							<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Assigner un rôle</label>
+							<div class="flex gap-sm">
+								<select name="role" id="modal-role-select" class="flex-1 px-4 py-2 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus">
+									<option value="associate">Adhérent</option>
+									<option value="coach">Coach</option>
+									<option value="staff">Staff</option>
+									<option value="president">Président</option>
+								</select>
+								<button type="submit" class="bg-primary text-on-primary px-md py-2 rounded-lg font-bold font-body-sm text-body-sm hover:bg-primary-container transition-colors cursor-pointer border-none">
+									Assigner
+								</button>
+							</div>
+						</form>
+
+						<!-- Retirer du club -->
+						<div class="border-t border-outline-variant pt-md">
+							<form id="modal-remove-member-form" method="POST" hx-target="#members-list" hx-swap="innerHTML">
+								<input type="hidden" name="_csrf" value={ csrfToken }/>
+								<button type="submit" class="inline-flex items-center gap-xs px-md py-2 bg-surface-container text-on-surface-variant rounded-lg font-bold font-body-sm text-body-sm hover:bg-red-100 hover:text-red-700 transition-colors cursor-pointer border border-outline-variant w-full justify-center">
+									<span class="material-symbols-outlined text-[16px]">person_remove</span>
+									Retirer du club
+								</button>
+							</form>
+						</div>
+					}
+				</div>
+			</div>
+
+			<script>
+				function openModal(btn) {
+					var clubId = window.location.pathname.split('/')[2];
+					var userId = btn.getAttribute('data-user-id');
+					var name = btn.getAttribute('data-member-name');
+					var membershipId = btn.getAttribute('data-membership-id');
+					var isPrimary = btn.getAttribute('data-is-primary') === 'true';
+					var email = btn.getAttribute('data-email') || '';
+					var phone = btn.getAttribute('data-phone') || '';
+
+					document.getElementById('modal-member-name').textContent = name;
+
+					// Contact section
+					var contactSection = document.getElementById('modal-contact-section');
+					var emailLink = document.getElementById('modal-email-link');
+					var phoneLink = document.getElementById('modal-phone-link');
+					var emailEl = document.getElementById('modal-email');
+					var phoneEl = document.getElementById('modal-phone');
+
+					if (email || phone) {
+						contactSection.classList.remove('hidden');
+						if (email) {
+							emailEl.textContent = email;
+							emailLink.href = 'mailto:' + email;
+							emailLink.classList.remove('hidden');
+						} else {
+							emailLink.classList.add('hidden');
+						}
+						if (phone) {
+							phoneEl.textContent = phone;
+							phoneLink.href = 'tel:' + phone;
+							phoneLink.classList.remove('hidden');
+						} else {
+							phoneLink.classList.add('hidden');
+						}
+					} else {
+						contactSection.classList.add('hidden');
+					}
+
+					// President-only actions
+					var assignForm = document.getElementById('modal-assign-form');
+					var removeMemberForm = document.getElementById('modal-remove-member-form');
+					if (assignForm) {
+						document.getElementById('modal-target-user-id').value = userId;
+						// Restrict role options: only primary members can have president/staff/coach
+						var select = document.getElementById('modal-role-select');
+						Array.from(select.options).forEach(function(opt) {
+							var restricted = opt.value === 'president' || opt.value === 'staff' || opt.value === 'coach';
+							opt.disabled = restricted && !isPrimary;
+							opt.hidden = restricted && !isPrimary;
+						});
+						if (!isPrimary) select.value = 'associate';
+						assignForm.setAttribute('action', '/clubs/' + clubId + '/roles/assign');
+						assignForm.setAttribute('hx-post', '/clubs/' + clubId + '/roles/assign');
+						htmx.process(assignForm);
+					}
+					if (removeMemberForm) {
+						removeMemberForm.setAttribute('action', '/clubs/' + clubId + '/members/' + membershipId + '/remove');
+						removeMemberForm.setAttribute('hx-post', '/clubs/' + clubId + '/members/' + membershipId + '/remove');
+						htmx.process(removeMemberForm);
+					}
+
+					var modal = document.getElementById('member-modal');
+					modal.classList.remove('hidden');
+					modal.classList.add('flex');
+				}
+
+				function closeModal() {
+					var modal = document.getElementById('member-modal');
+					modal.classList.add('hidden');
+					modal.classList.remove('flex');
+				}
+
+				// Fermer la modale après un swap HTMX réussi
+				document.body.addEventListener('htmx:afterSwap', function(e) {
+					if (e.detail.target && e.detail.target.id === 'members-list') {
+						closeModal();
+					}
+				});
+			</script>
+		}
+	}
+}
+
+templ MembersTable(club *clubs.Club, members []dto.MemberWithMembership, roleByUserId map[string]string, roleIdByUserId map[string]string, canManage bool, isPresident bool, csrfToken string) {
+	if len(members) == 0 {
+		<div class="bg-surface rounded-xl card-shadow p-xl text-center">
+			<span class="material-symbols-outlined text-[48px] text-outline opacity-40">group</span>
+			if canManage {
+				<p class="font-body-md text-body-md text-on-surface-variant mt-sm">Aucun membre dans ce club.</p>
+			} else {
+				<p class="font-body-md text-body-md text-on-surface-variant mt-sm">Vous n'avez pas encore de demande d'adhésion.</p>
+			}
+			if canManage {
+				<a
+					href={ templ.SafeURL("/clubs/" + club.Id.String() + "/members/add") }
+					class="inline-flex items-center gap-xs mt-md bg-primary text-on-primary px-md py-3 rounded-lg font-bold font-body-md text-body-md hover:bg-primary-container transition-colors no-underline"
+				>
+					<span class="material-symbols-outlined text-[18px]">person_add</span>
+					Ajouter le premier membre
+				</a>
+			} else {
+				<a
+					href={ templ.SafeURL("/clubs/" + club.Id.String() + "/join") }
+					class="inline-flex items-center gap-xs mt-md bg-primary text-on-primary px-md py-3 rounded-lg font-bold font-body-md text-body-md hover:bg-primary-container transition-colors no-underline"
+				>
+					<span class="material-symbols-outlined text-[18px]">person_add</span>
+					Faire une demande
+				</a>
+			}
+		</div>
+	} else {
+		<div class="bg-surface rounded-xl card-shadow overflow-hidden">
+			<table class="w-full">
+				<thead>
+					<tr class="border-b border-outline-variant">
+						<th class="text-left px-md py-sm font-body-sm text-body-sm font-semibold text-on-surface-variant">Membre</th>
+						<th class="text-left px-md py-sm font-body-sm text-body-sm font-semibold text-on-surface-variant hidden sm:table-cell">Date de naissance</th>
+						<th class="text-left px-md py-sm font-body-sm text-body-sm font-semibold text-on-surface-variant hidden md:table-cell">Genre</th>
+						<th class="text-left px-md py-sm font-body-sm text-body-sm font-semibold text-on-surface-variant">Statut</th>
+						if canManage {
+							<th class="text-left px-md py-sm font-body-sm text-body-sm font-semibold text-on-surface-variant hidden lg:table-cell">Rôle</th>
+							<th class="px-md py-sm"></th>
+						}
+					</tr>
+				</thead>
+				<tbody>
+					for _, mwm := range members {
+						<tr class="border-b border-outline-variant last:border-0 hover:bg-surface-container-low transition-colors h-16">
+							<td class="px-md py-sm">
+								<div class="flex items-center gap-sm">
+									<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center flex-shrink-0">
+										<span class="font-bold font-body-sm text-body-sm text-on-secondary-container">
+											{ string([]rune(mwm.Member.Firstname)[0:1]) }
+										</span>
+									</div>
+									<div>
+										<p class="font-bold font-body-md text-body-md text-on-surface">{ mwm.Member.Firstname } { mwm.Member.Lastname }</p>
+										if mwm.Member.IsPrimary {
+											<span class="font-data-label text-data-label text-outline">Profil principal</span>
+										}
+									</div>
+								</div>
+							</td>
+							<td class="px-md py-sm hidden sm:table-cell font-body-sm text-body-sm text-on-surface-variant">{ formatBirthdate(mwm.Member.Birthdate) }</td>
+							<td class="px-md py-sm hidden md:table-cell font-body-sm text-body-sm text-on-surface-variant">{ formatGender(mwm.Member.Gender) }</td>
+							<td class="px-md py-sm">
+								if mwm.Membership.IsValid {
+									<span class="badge-active">Validé</span>
+								} else {
+									<span class="badge-pending">En attente</span>
+								}
+							</td>
+							if canManage {
+								<td class="px-md py-sm hidden lg:table-cell">
+									if mwm.Member.IsPrimary {
+										if role, ok := roleByUserId[mwm.Member.UserId.String()]; ok {
+											<span class="font-data-label text-data-label bg-primary-container text-on-primary-container px-sm py-1 rounded-full">{ roleLabel(role) }</span>
+										} else {
+											<span class="font-data-label text-data-label text-outline">—</span>
+										}
+									} else {
+										<span class="font-data-label text-data-label bg-surface-container text-on-surface-variant px-sm py-1 rounded-full">Adhérent</span>
+									}
+								</td>
+								<td class="px-md py-sm">
+									<div class="flex items-center justify-end gap-xs">
+										if !mwm.Membership.IsValid {
+											<form method="POST" action={ templ.SafeURL("/clubs/" + club.Id.String() + "/members/" + mwm.Membership.Id.String() + "/validate") }>
+												<input type="hidden" name="_csrf" value={ csrfToken }/>
+												<button type="submit" class="inline-flex items-center gap-xs px-sm py-1.5 bg-green-100 text-green-700 rounded-lg font-bold font-body-sm text-body-sm hover:bg-green-200 transition-colors cursor-pointer border-none">
+													<span class="material-symbols-outlined text-[16px]">check_circle</span>
+													Valider
+												</button>
+											</form>
+											if isPresident {
+												<form method="POST" action={ templ.SafeURL("/clubs/" + club.Id.String() + "/members/" + mwm.Membership.Id.String() + "/refuse") }>
+													<input type="hidden" name="_csrf" value={ csrfToken }/>
+													<button type="submit" class="inline-flex items-center gap-xs px-sm py-1.5 bg-red-100 text-red-700 rounded-lg font-bold font-body-sm text-body-sm hover:bg-red-200 transition-colors cursor-pointer border-none">
+														<span class="material-symbols-outlined text-[16px]">cancel</span>
+														Refuser
+													</button>
+												</form>
+											}
+										}
+										if canManage && mwm.Membership.IsValid {
+											<button
+												type="button"
+												class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors cursor-pointer border border-outline-variant"
+												onclick="openModal(this)"
+												data-user-id={ mwm.Member.UserId.String() }
+												data-member-name={ mwm.Member.Firstname + " " + mwm.Member.Lastname }
+												data-membership-id={ mwm.Membership.Id.String() }
+												data-current-role={ roleLabel(roleByUserId[mwm.Member.UserId.String()]) }
+												data-is-primary={ strconv.FormatBool(mwm.Member.IsPrimary) }
+												data-email={ mwm.Email }
+												data-phone={ mwm.Phone }
+											>
+												<span class="material-symbols-outlined text-[16px]">more_vert</span>
+											</button>
+										}
+									</div>
+								</td>
+							}
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}

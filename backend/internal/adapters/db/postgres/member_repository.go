@@ -4,7 +4,6 @@ import (
 	"clubmanager/internal/domain"
 	"clubmanager/internal/domain/members"
 	"context"
-
 	"errors"
 
 	"github.com/google/uuid"
@@ -32,12 +31,12 @@ func (r memberRepository) Save(ctx context.Context, m *members.Member) (*members
 
 func (r memberRepository) insert(ctx context.Context, m *members.Member) (*members.Member, error) {
 	row := r.db.QueryRow(ctx, `
-		INSERT INTO members (user_id, club_id, firstname, lastname, birthdate, gender, is_valid)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, user_id, club_id, firstname, lastname, birthdate::text, gender, is_valid
-	`, m.UserId, m.ClubId, m.Firstname, m.Lastname, m.Birthdate, m.Gender, m.IsValid)
+		INSERT INTO members (user_id, firstname, lastname, birthdate, gender, is_primary)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, user_id, firstname, lastname, birthdate::text, gender, is_primary
+	`, m.UserId, m.Firstname, m.Lastname, m.Birthdate, m.Gender, m.IsPrimary)
 
-	if err := row.Scan(&m.Id, &m.UserId, &m.ClubId, &m.Firstname, &m.Lastname, &m.Birthdate, &m.Gender, &m.IsValid); err != nil {
+	if err := row.Scan(&m.Id, &m.UserId, &m.Firstname, &m.Lastname, &m.Birthdate, &m.Gender, &m.IsPrimary); err != nil {
 		return nil, err
 	}
 	return m, nil
@@ -45,9 +44,9 @@ func (r memberRepository) insert(ctx context.Context, m *members.Member) (*membe
 
 func (r memberRepository) update(ctx context.Context, m *members.Member) (*members.Member, error) {
 	_, err := r.db.Exec(ctx, `
-		UPDATE members SET firstname = $1, lastname = $2, birthdate = $3, gender = $4, is_valid = $5
+		UPDATE members SET firstname = $1, lastname = $2, birthdate = $3, gender = $4, is_primary = $5
 		WHERE id = $6
-	`, m.Firstname, m.Lastname, m.Birthdate, m.Gender, m.IsValid, m.Id)
+	`, m.Firstname, m.Lastname, m.Birthdate, m.Gender, m.IsPrimary, m.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -56,12 +55,12 @@ func (r memberRepository) update(ctx context.Context, m *members.Member) (*membe
 
 func (r memberRepository) Find(ctx context.Context, id string) (*members.Member, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT id, user_id, club_id, firstname, lastname, birthdate::text, gender, is_valid
+		SELECT id, user_id, firstname, lastname, birthdate::text, gender, is_primary
 		FROM members WHERE id = $1
 	`, id)
 
 	m := members.Member{}
-	if err := row.Scan(&m.Id, &m.UserId, &m.ClubId, &m.Firstname, &m.Lastname, &m.Birthdate, &m.Gender, &m.IsValid); err != nil {
+	if err := row.Scan(&m.Id, &m.UserId, &m.Firstname, &m.Lastname, &m.Birthdate, &m.Gender, &m.IsPrimary); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
@@ -77,7 +76,7 @@ func (r memberRepository) Search(ctx context.Context, params *domain.SearchParam
 	}
 
 	rows, err := r.db.Query(ctx,
-		"SELECT id, user_id, club_id, firstname, lastname, birthdate::text, gender, is_valid FROM members WHERE "+where,
+		"SELECT id, user_id, firstname, lastname, birthdate::text, gender, is_primary FROM members WHERE "+where,
 		args...,
 	)
 	if err != nil {
@@ -88,10 +87,13 @@ func (r memberRepository) Search(ctx context.Context, params *domain.SearchParam
 	var list []*members.Member
 	for rows.Next() {
 		m := members.Member{}
-		if err := rows.Scan(&m.Id, &m.UserId, &m.ClubId, &m.Firstname, &m.Lastname, &m.Birthdate, &m.Gender, &m.IsValid); err != nil {
+		if err := rows.Scan(&m.Id, &m.UserId, &m.Firstname, &m.Lastname, &m.Birthdate, &m.Gender, &m.IsPrimary); err != nil {
 			return nil, err
 		}
 		list = append(list, &m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return list, nil
 }

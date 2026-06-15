@@ -1,17 +1,21 @@
 services:
-  frontend:
+  web:
     build:
       context: .
-      dockerfile: frontend/Dockerfile
+      dockerfile: backend/Dockerfile.web
     ports:
       - "8080:8080"
+    environment:
+      DB_URL: "postgres://${DB_USER}:${DB_PASSWORD}@${DB_SERVICE}:5432/${DB_NAME}?sslmode=disable"
+      JWT_SECRET: ${JWT_SECRET}
+      HTTP_PORT: ":8080"
     depends_on:
-      backend:
+      postgres:
         condition: service_healthy
     networks:
       - club-manager-network
     restart: unless-stopped
-  
+
   backend:
     build:
       context: .

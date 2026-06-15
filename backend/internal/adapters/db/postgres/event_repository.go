@@ -4,8 +4,8 @@ import (
 	"clubmanager/internal/domain"
 	"clubmanager/internal/domain/events"
 	"context"
-
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -100,6 +100,9 @@ func (r eventRepository) Search(ctx context.Context, params *domain.SearchParams
 		}
 		list = append(list, e)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return list, nil
 }
 
@@ -120,6 +123,68 @@ func scanEvent(scan func(...any) error, e *events.Event) (*events.Event, error) 
 	return e, nil
 }
 
+// FindUpcoming returns at most `limit` events for `clubId` with date >= from, ordered by date ASC.
+// Implements services.EventUpcomingPort.
+func (r eventRepository) FindUpcoming(ctx context.Context, clubId string, from time.Time, limit int) ([]*events.Event, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT id, club_id, created_by, title, description, type, status, location,
+		       registration_open_at::text, registration_close_at::text, date::text,
+		       COALESCE(max_participants, 0)
+		FROM events
+		WHERE club_id = $1 AND date >= $2
+		ORDER BY date ASC
+		LIMIT $3
+	`, clubId, from, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []*events.Event
+	for rows.Next() {
+		e := &events.Event{}
+		if _, err := scanEvent(rows.Scan, e); err != nil {
+			return nil, err
+		}
+		list = append(list, e)
+	}
+	return list, rows.Err()
+}
+
+// FindByClub returns a paginated list of events for a club, ordered by date DESC.
+// Implements services.EventClubListPort.
+func (r eventRepository) FindByClub(ctx context.Context, clubId string, page, pageSize int) ([]*events.Event, int, error) {
+	var total int
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM events WHERE club_id = $1`, clubId).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * pageSize
+	rows, err := r.db.Query(ctx, `
+		SELECT id, club_id, created_by, title, description, type, status, location,
+		       registration_open_at::text, registration_close_at::text, date::text,
+		       COALESCE(max_participants, 0)
+		FROM events
+		WHERE club_id = $1
+		ORDER BY date DESC
+		LIMIT $2 OFFSET $3
+	`, clubId, pageSize, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var list []*events.Event
+	for rows.Next() {
+		e := &events.Event{}
+		if _, err := scanEvent(rows.Scan, e); err != nil {
+			return nil, 0, err
+		}
+		list = append(list, e)
+	}
+	return list, total, rows.Err()
+}
+
 func nullableInt(n int) *int {
 	if n <= 0 {
 		return nil
@@ -137,14 +202,35 @@ func NewEventCategoryRepository(db *pgxpool.Pool) *eventCategoryRepository {
 	return &eventCategoryRepository{db: db}
 }
 
+func nullableStr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+func scanEventCategory(scan func(...any) error, c *events.EventCategory) error {
+	var weighIn, startsAt *string
+	if err := scan(&c.Id, &c.EventId, &c.JudoCategoryId, &weighIn, &startsAt, &c.Status); err != nil {
+		return err
+	}
+	if weighIn != nil {
+		c.WeighInAt = *weighIn
+	}
+	if startsAt != nil {
+		c.StartsAt = *startsAt
+	}
+	return nil
+}
+
 func (r eventCategoryRepository) Save(ctx context.Context, c *events.EventCategory) (*events.EventCategory, error) {
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO event_categories (event_id, judo_category_id, weigh_in_at, starts_at, status)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, event_id, judo_category_id, weigh_in_at::text, starts_at::text, status
-	`, c.EventId, c.JudoCategoryId, c.WeighInAt, c.StartsAt, c.Status)
+	`, c.EventId, c.JudoCategoryId, nullableStr(c.WeighInAt), nullableStr(c.StartsAt), c.Status)
 
-	if err := row.Scan(&c.Id, &c.EventId, &c.JudoCategoryId, &c.WeighInAt, &c.StartsAt, &c.Status); err != nil {
+	if err := scanEventCategory(row.Scan, c); err != nil {
 		return nil, err
 	}
 	return c, nil
@@ -153,7 +239,7 @@ func (r eventCategoryRepository) Save(ctx context.Context, c *events.EventCatego
 func (r eventCategoryRepository) FindByEvent(ctx context.Context, eventId string) ([]*events.EventCategory, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, event_id, judo_category_id, weigh_in_at::text, starts_at::text, status
-		FROM event_categories WHERE event_id = $1 ORDER BY starts_at
+		FROM event_categories WHERE event_id = $1 ORDER BY weigh_in_at NULLS LAST
 	`, eventId)
 	if err != nil {
 		return nil, err
@@ -163,10 +249,13 @@ func (r eventCategoryRepository) FindByEvent(ctx context.Context, eventId string
 	var list []*events.EventCategory
 	for rows.Next() {
 		c := &events.EventCategory{}
-		if err := rows.Scan(&c.Id, &c.EventId, &c.JudoCategoryId, &c.WeighInAt, &c.StartsAt, &c.Status); err != nil {
+		if err := scanEventCategory(rows.Scan, c); err != nil {
 			return nil, err
 		}
 		list = append(list, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return list, nil
 }
@@ -177,7 +266,7 @@ func (r eventCategoryRepository) FindById(ctx context.Context, id string) (*even
 		FROM event_categories WHERE id = $1
 	`, id)
 	c := &events.EventCategory{}
-	if err := row.Scan(&c.Id, &c.EventId, &c.JudoCategoryId, &c.WeighInAt, &c.StartsAt, &c.Status); err != nil {
+	if err := scanEventCategory(row.Scan, c); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
@@ -192,7 +281,7 @@ func (r eventCategoryRepository) UpdateStatus(ctx context.Context, id, status st
 		RETURNING id, event_id, judo_category_id, weigh_in_at::text, starts_at::text, status
 	`, status, id)
 	c := &events.EventCategory{}
-	if err := row.Scan(&c.Id, &c.EventId, &c.JudoCategoryId, &c.WeighInAt, &c.StartsAt, &c.Status); err != nil {
+	if err := scanEventCategory(row.Scan, c); err != nil {
 		return nil, err
 	}
 	return c, nil

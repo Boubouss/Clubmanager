@@ -14,17 +14,19 @@ func (s ClubManagerServiceServer) AddMember(ctx context.Context, req *proto.AddM
 		Lastname:  req.Lastname,
 		Birthdate: req.Birthdate,
 		Gender:    req.Gender,
+		IsPrimary: req.IsPrimary,
 	})
 	if err != nil {
 		return nil, err
 	}
 	var m *proto.Member
 	if res.Member != nil {
-		m = memberProto(res.Member)
+		m = memberProto(res.Member, res.Membership)
 	}
 	return &proto.AddMemberResponse{Member: m, Errors: res.Errors}, nil
 }
 
+// ValidateMember approves a club membership by its ID.
 func (s ClubManagerServiceServer) ValidateMember(ctx context.Context, req *proto.ValidateMemberRequest) (*proto.ValidateMemberResponse, error) {
 	res, err := s.msvc.ValidateMember(ctx, &dto.ValidateMemberRequest{Id: req.Id})
 	if err != nil {
@@ -32,7 +34,7 @@ func (s ClubManagerServiceServer) ValidateMember(ctx context.Context, req *proto
 	}
 	var m *proto.Member
 	if res.Member != nil {
-		m = memberProto(res.Member)
+		m = memberProto(res.Member, res.Membership)
 	}
 	return &proto.ValidateMemberResponse{Member: m, Errors: res.Errors}, nil
 }
@@ -61,7 +63,7 @@ func (s ClubManagerServiceServer) UpdateMember(ctx context.Context, req *proto.U
 	}
 	var m *proto.Member
 	if res.Member != nil {
-		m = memberProto(res.Member)
+		m = memberProto(res.Member, nil)
 	}
 	return &proto.UpdateMemberResponse{Member: m, Errors: res.Errors}, nil
 }

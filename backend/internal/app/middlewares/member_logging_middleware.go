@@ -3,6 +3,7 @@ package middlewares
 import (
 	"clubmanager/internal/adapters/api/grpc/dto"
 	"clubmanager/internal/app/services"
+	"clubmanager/internal/domain/members"
 	"context"
 	"fmt"
 	"time"
@@ -14,6 +15,27 @@ type memberLoggingService struct {
 
 func NewMemberLoggingService(next services.MemberService) services.MemberService {
 	return &memberLoggingService{next: next}
+}
+
+func (s *memberLoggingService) CreateMember(ctx context.Context, data *dto.CreateMemberRequest) (res *dto.CreateMemberResponse, err error) {
+	defer func(begin time.Time) {
+		fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "CreateMember", time.Since(begin), err)
+	}(time.Now())
+	return s.next.CreateMember(ctx, data)
+}
+
+func (s *memberLoggingService) RequestMembership(ctx context.Context, data *dto.RequestMembershipRequest) (res *dto.RequestMembershipResponse, err error) {
+	defer func(begin time.Time) {
+		fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "RequestMembership", time.Since(begin), err)
+	}(time.Now())
+	return s.next.RequestMembership(ctx, data)
+}
+
+func (s *memberLoggingService) AddMembership(ctx context.Context, memberId, clubId string) (res *members.ClubMembership, err error) {
+	defer func(begin time.Time) {
+		fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "AddMembership", time.Since(begin), err)
+	}(time.Now())
+	return s.next.AddMembership(ctx, memberId, clubId)
 }
 
 func (s *memberLoggingService) AddMember(ctx context.Context, data *dto.AddMemberRequest) (res *dto.AddMemberResponse, err error) {
@@ -28,6 +50,13 @@ func (s *memberLoggingService) ValidateMember(ctx context.Context, data *dto.Val
 		fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "ValidateMember", time.Since(begin), err)
 	}(time.Now())
 	return s.next.ValidateMember(ctx, data)
+}
+
+func (s *memberLoggingService) GetMember(ctx context.Context, memberId string) (res *members.Member, err error) {
+	defer func(begin time.Time) {
+		fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "GetMember", time.Since(begin), err)
+	}(time.Now())
+	return s.next.GetMember(ctx, memberId)
 }
 
 func (s *memberLoggingService) GetMembersByUser(ctx context.Context, data *dto.GetMembersByUserRequest) (res *dto.GetMembersByUserResponse, err error) {
@@ -49,4 +78,32 @@ func (s *memberLoggingService) RemoveMember(ctx context.Context, id string) (ok 
 		fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "RemoveMember", time.Since(begin), err)
 	}(time.Now())
 	return s.next.RemoveMember(ctx, id)
+}
+
+func (s *memberLoggingService) RemoveMembership(ctx context.Context, id string) (ok bool, err error) {
+	defer func(begin time.Time) {
+		fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "RemoveMembership", time.Since(begin), err)
+	}(time.Now())
+	return s.next.RemoveMembership(ctx, id)
+}
+
+func (s *memberLoggingService) GetMembersByClub(ctx context.Context, data *dto.GetMembersByClubRequest) (res *dto.GetMembersByClubResponse, err error) {
+	defer func(begin time.Time) {
+		fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "GetMembersByClub", time.Since(begin), err)
+	}(time.Now())
+	return s.next.GetMembersByClub(ctx, data)
+}
+
+func (s *memberLoggingService) GetStaffContacts(ctx context.Context, clubId string) (res *dto.GetStaffContactsResponse, err error) {
+	defer func(begin time.Time) {
+		fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "GetStaffContacts", time.Since(begin), err)
+	}(time.Now())
+	return s.next.GetStaffContacts(ctx, clubId)
+}
+
+func (s *memberLoggingService) GetUserClubs(ctx context.Context, data *dto.GetUserClubsRequest) (res *dto.GetUserClubsResponse, err error) {
+	defer func(begin time.Time) {
+		fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "GetUserClubs", time.Since(begin), err)
+	}(time.Now())
+	return s.next.GetUserClubs(ctx, data)
 }

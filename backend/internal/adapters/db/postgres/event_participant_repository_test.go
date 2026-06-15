@@ -18,9 +18,9 @@ func setupParticipantFixtures(t *testing.T) (eventId, member1Id, member2Id uuid.
 	t.Helper()
 	userId := seedUser(t, "user_part", "user_part@example.com")
 	clubId := seedClub(t, "222222222", "Part Club")
-	member1Id = seedMember(t, userId, clubId, "Part1", "One")
+	member1Id = seedMember(t, userId, "Part1", "One")
 	userId2 := seedUser(t, "user_part2", "user_part2@example.com")
-	member2Id = seedMember(t, userId2, clubId, "Part2", "Two")
+	member2Id = seedMember(t, userId2, "Part2", "Two")
 	eventId = seedEvent(t, clubId, userId, "Test Competition")
 	return
 }
@@ -63,9 +63,9 @@ func TestEventParticipantRepository_Register_CapacityReturnsNil(t *testing.T) {
 	truncateAll(t)
 	userId := seedUser(t, "user_cap", "user_cap@example.com")
 	clubId := seedClub(t, "333333333", "Cap Club")
-	member1Id := seedMember(t, userId, clubId, "Cap1", "One")
+	member1Id := seedMember(t, userId, "Cap1", "One")
 	userId2 := seedUser(t, "user_cap2", "user_cap2@example.com")
-	member2Id := seedMember(t, userId2, clubId, "Cap2", "Two")
+	member2Id := seedMember(t, userId2, "Cap2", "Two")
 	// Event with max 1 participant
 	eventId := seedEventMaxParticipants(t, clubId, userId, "Capped Event", 1)
 	repo := NewEventParticipantRepository(testPool)

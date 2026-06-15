@@ -1,0 +1,45 @@
+package layout
+
+templ Page(title string, isAuth bool) {
+	@Base(title) {
+		@Header(isAuth)
+		<main class="flex-grow w-full max-w-container-max mx-auto px-gutter py-lg">
+			{ children... }
+		</main>
+		@Footer()
+		<!-- Modal de confirmation de suppression -->
+		<div id="confirm-delete-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40" onclick="if(event.target===this)closeConfirmModal()">
+			<div class="bg-surface rounded-xl card-shadow p-lg w-full max-w-sm mx-4">
+				<div class="flex items-center gap-sm mb-md">
+					<span class="material-symbols-outlined text-error text-[24px]">warning</span>
+					<h2 class="font-headline-sm text-headline-sm text-on-surface">Confirmer la suppression</h2>
+				</div>
+				<p id="confirm-delete-message" class="font-body-md text-body-md text-on-surface-variant mb-lg"></p>
+				<div class="flex gap-sm justify-end">
+					<button type="button" onclick="closeConfirmModal()" class="px-md py-2 bg-surface-container text-on-surface rounded-lg font-bold font-body-sm text-body-sm hover:bg-surface-container-high transition-colors cursor-pointer border border-outline-variant">
+						Annuler
+					</button>
+					<button type="button" id="confirm-delete-btn" class="px-md py-2 bg-red-600 text-white rounded-lg font-bold font-body-sm text-body-sm hover:bg-red-700 transition-colors cursor-pointer border-none">
+						Supprimer
+					</button>
+				</div>
+			</div>
+		</div>
+		<script>
+			function confirmDelete(formId, message) {
+				document.getElementById('confirm-delete-message').textContent = message || 'Cette action est irréversible.';
+				document.getElementById('confirm-delete-btn').onclick = function() {
+					document.getElementById(formId).submit();
+				};
+				var modal = document.getElementById('confirm-delete-modal');
+				modal.classList.remove('hidden');
+				modal.classList.add('flex');
+			}
+			function closeConfirmModal() {
+				var modal = document.getElementById('confirm-delete-modal');
+				modal.classList.add('hidden');
+				modal.classList.remove('flex');
+			}
+		</script>
+	}
+}

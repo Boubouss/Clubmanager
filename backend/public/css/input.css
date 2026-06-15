@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-font-smoothing: antialiased; }
+  body { font-family: 'Inter', system-ui, sans-serif; }
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+}
+
+@layer components {
+  /* Status badges */
+  .badge-active    { @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-green-100 text-green-700; }
+  .badge-pending   { @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-700; }
+  .badge-suspended { @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-red-100 text-red-700; }
+  .badge-draft     { @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-gray-100 text-gray-600; }
+  .badge-published { @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-green-100 text-green-700; }
+  .badge-archived  { @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-gray-100 text-gray-600; }
+
+  /* Card shadow utility */
+  .card-shadow { box-shadow: 0px 4px 20px rgba(28, 25, 23, 0.05); }
+  .card-hover  { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+  .card-hover:hover { transform: translateY(-2px); box-shadow: 0px 8px 25px rgba(28, 25, 23, 0.08); }
+
+  /* Focus ring for inputs */
+  .input-focus:focus {
+    outline: none;
+    border-color: #0058be;
+    box-shadow: 0 0 0 3px rgba(0, 88, 190, 0.15);
+  }
+}

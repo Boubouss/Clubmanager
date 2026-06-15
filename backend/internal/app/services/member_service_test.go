@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// ── Mocks ─────────────────────────────────────────────────────────────────────
+
 type mockMemberRepository struct {
 	saveFunc   func(context.Context, *members.Member) (*members.Member, error)
 	findFunc   func(context.Context, string) (*members.Member, error)
@@ -32,39 +34,109 @@ func (m mockMemberRepository) Delete(ctx context.Context, id string) (bool, erro
 	return m.deleteFunc(ctx, id)
 }
 
+type mockClubMembershipRepository struct {
+	saveFunc        func(context.Context, *members.ClubMembership) (*members.ClubMembership, error)
+	findFunc        func(context.Context, string) (*members.ClubMembership, error)
+	findByMemberFunc func(context.Context, string) ([]*members.ClubMembership, error)
+	findByClubFunc  func(context.Context, string) ([]*members.ClubMembership, error)
+	deleteFunc      func(context.Context, string) (bool, error)
+}
+
+func (m mockClubMembershipRepository) Save(ctx context.Context, cm *members.ClubMembership) (*members.ClubMembership, error) {
+	return m.saveFunc(ctx, cm)
+}
+func (m mockClubMembershipRepository) Find(ctx context.Context, id string) (*members.ClubMembership, error) {
+	return m.findFunc(ctx, id)
+}
+func (m mockClubMembershipRepository) FindByMember(ctx context.Context, memberId string) ([]*members.ClubMembership, error) {
+	return m.findByMemberFunc(ctx, memberId)
+}
+func (m mockClubMembershipRepository) FindByClub(ctx context.Context, clubId string) ([]*members.ClubMembership, error) {
+	return m.findByClubFunc(ctx, clubId)
+}
+func (m mockClubMembershipRepository) Delete(ctx context.Context, id string) (bool, error) {
+	return m.deleteFunc(ctx, id)
+}
+func (m mockClubMembershipRepository) FindByClubWithContacts(ctx context.Context, clubId string, page, pageSize int) ([]*members.MemberContact, int, error) {
+	return nil, 0, nil
+}
+
+// ── Fixtures ──────────────────────────────────────────────────────────────────
+
 var (
-	memberUUID = uuid.MustParse("00000000-0000-0000-0000-000000000020")
-	memberUser = uuid.MustParse("00000000-0000-0000-0000-000000000001")
-	memberClub = uuid.MustParse("00000000-0000-0000-0000-000000000002")
-	testMember = &members.Member{
+	memberUUID      = uuid.MustParse("00000000-0000-0000-0000-000000000020")
+	memberUser      = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	memberClub      = uuid.MustParse("00000000-0000-0000-0000-000000000002")
+	membershipUUID  = uuid.MustParse("00000000-0000-0000-0000-000000000030")
+	testMember      = &members.Member{
 		Id:        memberUUID,
 		UserId:    memberUser,
-		ClubId:    memberClub,
 		Firstname: "Jean",
 		Lastname:  "Dupont",
 		Birthdate: "2000-06-15",
 		Gender:    "man",
-		IsValid:   false,
+		IsPrimary: false,
+	}
+	testMembership = &members.ClubMembership{
+		Id:       membershipUUID,
+		MemberId: memberUUID,
+		ClubId:   memberClub,
+		IsValid:  false,
 	}
 )
 
-func newTestMemberService(repo domain.Repository[members.Member, string]) *memberService {
-	return NewMemberService(MemberServiceConfig{Repository: repo})
+func newTestMemberService(memberRepo domain.Repository[members.Member, string], msRepo ClubMembershipRepository) *memberService {
+	return NewMemberService(MemberServiceConfig{
+		Repository:           memberRepo,
+		MembershipRepository: msRepo,
+	})
 }
+
+func newTestMemberServiceWithChecker(memberRepo domain.Repository[members.Member, string], msRepo ClubMembershipRepository, checker mockClubStatusChecker) *memberService {
+	return NewMemberService(MemberServiceConfig{
+		Repository:           memberRepo,
+		MembershipRepository: msRepo,
+		ClubStatusChecker:    checker,
+	})
+}
+
+func noopMembershipRepo() mockClubMembershipRepository {
+	return mockClubMembershipRepository{
+		saveFunc: func(_ context.Context, cm *members.ClubMembership) (*members.ClubMembership, error) {
+			cm.Id = membershipUUID
+			return cm, nil
+		},
+		findFunc:        func(_ context.Context, _ string) (*members.ClubMembership, error) { return nil, nil },
+		findByMemberFunc: func(_ context.Context, _ string) ([]*members.ClubMembership, error) { return nil, nil },
+		findByClubFunc:  func(_ context.Context, _ string) ([]*members.ClubMembership, error) { return nil, nil },
+		deleteFunc:      func(_ context.Context, _ string) (bool, error) { return true, nil },
+	}
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 func TestAddMember(t *testing.T) {
 	tests := []struct {
-		name       string
-		req        *dto.AddMemberRequest
-		saveErr    error
-		wantErrors bool
-		wantErr    bool
+		name        string
+		req         *dto.AddMemberRequest
+		memberSave  error
+		membershipSave error
+		wantErrors  bool
+		wantErr     bool
 	}{
 		{
 			name: "Valid member",
 			req: &dto.AddMemberRequest{
 				UserId: memberUser.String(), ClubId: memberClub.String(),
 				Firstname: "Jean", Lastname: "Dupont", Birthdate: "2000-06-15", Gender: "man",
+			},
+		},
+		{
+			name: "Valid primary member",
+			req: &dto.AddMemberRequest{
+				UserId: memberUser.String(), ClubId: memberClub.String(),
+				Firstname: "Jean", Lastname: "Dupont", Birthdate: "2000-06-15", Gender: "man",
+				IsPrimary: true,
 			},
 		},
 		{
@@ -92,29 +164,68 @@ func TestAddMember(t *testing.T) {
 			wantErrors: true,
 		},
 		{
-			name: "Repository error",
+			name: "Invalid club ID — rejected before DB write",
+			req: &dto.AddMemberRequest{
+				UserId: memberUser.String(), ClubId: "not-a-uuid",
+				Firstname: "Jean", Lastname: "Dupont", Birthdate: "2000-06-15", Gender: "man",
+			},
+			wantErrors: true,
+		},
+		{
+			name: "Repository error on member save",
 			req: &dto.AddMemberRequest{
 				UserId: memberUser.String(), ClubId: memberClub.String(),
 				Firstname: "Jean", Lastname: "Dupont", Birthdate: "2000-06-15", Gender: "man",
 			},
-			saveErr: errors.New("db error"),
-			wantErr: true,
+			memberSave: errors.New("db error"),
+			wantErr:    true,
+		},
+		{
+			name: "Repository error on membership save",
+			req: &dto.AddMemberRequest{
+				UserId: memberUser.String(), ClubId: memberClub.String(),
+				Firstname: "Jean", Lastname: "Dupont", Birthdate: "2000-06-15", Gender: "man",
+			},
+			membershipSave: errors.New("db error"),
+			wantErr:        true,
 		},
 	}
 
+	// Test pending-club blocking separately (requires ClubStatusChecker injection).
+	t.Run("Pending club blocks member creation", func(t *testing.T) {
+		memberRepo := mockMemberRepository{}
+		checker := mockClubStatusChecker{
+			isActiveFunc: func(_ context.Context, _ string) (bool, error) { return false, nil },
+		}
+		svc := newTestMemberServiceWithChecker(memberRepo, noopMembershipRepo(), checker)
+		res, err := svc.AddMember(context.Background(), &dto.AddMemberRequest{
+			UserId: memberUser.String(), ClubId: memberClub.String(),
+			Firstname: "Jean", Lastname: "Dupont", Birthdate: "2000-06-15", Gender: "man",
+		})
+		assert.NoError(t, err)
+		assert.True(t, len(res.Errors) > 0)
+		assert.Nil(t, res.Member)
+	})
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := mockMemberRepository{
+			memberRepo := mockMemberRepository{
 				saveFunc: func(_ context.Context, m *members.Member) (*members.Member, error) {
-					if tt.saveErr != nil {
-						return nil, tt.saveErr
+					if tt.memberSave != nil {
+						return nil, tt.memberSave
 					}
 					m.Id = memberUUID
 					return m, nil
 				},
 			}
+			msRepo := noopMembershipRepo()
+			if tt.membershipSave != nil {
+				msRepo.saveFunc = func(_ context.Context, _ *members.ClubMembership) (*members.ClubMembership, error) {
+					return nil, tt.membershipSave
+				}
+			}
 
-			svc := newTestMemberService(repo)
+			svc := newTestMemberService(memberRepo, msRepo)
 			res, err := svc.AddMember(context.Background(), tt.req)
 
 			if tt.wantErr {
@@ -128,7 +239,9 @@ func TestAddMember(t *testing.T) {
 			} else {
 				assert.Empty(t, res.Errors)
 				assert.NotNil(t, res.Member)
-				assert.False(t, res.Member.IsValid)
+				assert.NotNil(t, res.Membership)
+				assert.False(t, res.Membership.IsValid)
+				assert.Equal(t, tt.req.IsPrimary, res.Member.IsPrimary)
 			}
 		})
 	}
@@ -137,50 +250,60 @@ func TestAddMember(t *testing.T) {
 func TestValidateMember(t *testing.T) {
 	tests := []struct {
 		name       string
-		findResp   *members.Member
-		findErr    error
-		saveErr    error
+		findMs     *members.ClubMembership
+		findMsErr  error
+		saveMsErr  error
+		findMember *members.Member
 		wantErrors bool
 		wantErr    bool
 	}{
 		{
-			name:     "Valid — is_valid set to true",
-			findResp: testMember,
+			name:       "Valid — membership approved",
+			findMs:     testMembership,
+			findMember: testMember,
 		},
 		{
-			name:       "Member not found",
-			findResp:   nil,
+			name:       "Membership not found",
+			findMs:     nil,
 			wantErrors: true,
 		},
 		{
-			name:    "Repository error on Find",
-			findErr: errors.New("db error"),
-			wantErr: true,
+			name:      "Repository error on Find",
+			findMsErr: errors.New("db error"),
+			wantErr:   true,
 		},
 		{
-			name:     "Repository error on Save",
-			findResp: testMember,
-			saveErr:  errors.New("db error"),
-			wantErr:  true,
+			name:      "Repository error on Save",
+			findMs:    testMembership,
+			saveMsErr: errors.New("db error"),
+			wantErr:   true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := mockMemberRepository{
+			memberRepo := mockMemberRepository{
 				findFunc: func(_ context.Context, _ string) (*members.Member, error) {
-					return tt.findResp, tt.findErr
-				},
-				saveFunc: func(_ context.Context, m *members.Member) (*members.Member, error) {
-					if tt.saveErr != nil {
-						return nil, tt.saveErr
-					}
-					return m, nil
+					return tt.findMember, nil
 				},
 			}
+			msRepo := mockClubMembershipRepository{
+				findFunc: func(_ context.Context, _ string) (*members.ClubMembership, error) {
+					return tt.findMs, tt.findMsErr
+				},
+				saveFunc: func(_ context.Context, cm *members.ClubMembership) (*members.ClubMembership, error) {
+					if tt.saveMsErr != nil {
+						return nil, tt.saveMsErr
+					}
+					return cm, nil
+				},
+				findByMemberFunc: func(_ context.Context, _ string) ([]*members.ClubMembership, error) { return nil, nil },
+				findByClubFunc:   func(_ context.Context, _ string) ([]*members.ClubMembership, error) { return nil, nil },
+				deleteFunc:       func(_ context.Context, _ string) (bool, error) { return true, nil },
+			}
 
-			svc := newTestMemberService(repo)
-			res, err := svc.ValidateMember(context.Background(), &dto.ValidateMemberRequest{Id: memberUUID.String()})
+			svc := newTestMemberService(memberRepo, msRepo)
+			res, err := svc.ValidateMember(context.Background(), &dto.ValidateMemberRequest{Id: membershipUUID.String()})
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -191,8 +314,8 @@ func TestValidateMember(t *testing.T) {
 				assert.True(t, len(res.Errors) > 0)
 			} else {
 				assert.Empty(t, res.Errors)
-				assert.NotNil(t, res.Member)
-				assert.True(t, res.Member.IsValid)
+				assert.NotNil(t, res.Membership)
+				assert.True(t, res.Membership.IsValid)
 			}
 		})
 	}
@@ -234,7 +357,7 @@ func TestUpdateMember(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := mockMemberRepository{
+			memberRepo := mockMemberRepository{
 				findFunc: func(_ context.Context, _ string) (*members.Member, error) {
 					return tt.findResp, tt.findErr
 				},
@@ -243,7 +366,7 @@ func TestUpdateMember(t *testing.T) {
 				},
 			}
 
-			svc := newTestMemberService(repo)
+			svc := newTestMemberService(memberRepo, noopMembershipRepo())
 			res, err := svc.UpdateMember(context.Background(), tt.req)
 
 			if tt.wantErr {
@@ -275,13 +398,13 @@ func TestRemoveMember(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := mockMemberRepository{
+			memberRepo := mockMemberRepository{
 				deleteFunc: func(_ context.Context, _ string) (bool, error) {
 					return tt.deleteResp, tt.deleteErr
 				},
 			}
 
-			svc := newTestMemberService(repo)
+			svc := newTestMemberService(memberRepo, noopMembershipRepo())
 			ok, err := svc.RemoveMember(context.Background(), memberUUID.String())
 
 			if tt.wantErr {
@@ -296,24 +419,33 @@ func TestRemoveMember(t *testing.T) {
 
 func TestGetMembersByUser(t *testing.T) {
 	tests := []struct {
-		name       string
-		req        *dto.GetMembersByUserRequest
-		searchResp []*members.Member
-		searchErr  error
-		wantCount  int
-		wantErr    bool
+		name              string
+		req               *dto.GetMembersByUserRequest
+		searchResp        []*members.Member
+		searchErr         error
+		findByMemberResp  []*members.ClubMembership
+		wantCount         int
+		wantErr           bool
 	}{
 		{
-			name:       "Without club filter",
+			name:       "Without club filter — returns all members",
 			req:        &dto.GetMembersByUserRequest{UserId: memberUser.String()},
 			searchResp: []*members.Member{testMember},
 			wantCount:  1,
 		},
 		{
-			name:       "With club filter",
+			name:       "With club filter — member has matching membership",
 			req:        &dto.GetMembersByUserRequest{UserId: memberUser.String(), ClubId: memberClub.String()},
 			searchResp: []*members.Member{testMember},
+			findByMemberResp: []*members.ClubMembership{testMembership},
 			wantCount:  1,
+		},
+		{
+			name:             "With club filter — member has no matching membership",
+			req:              &dto.GetMembersByUserRequest{UserId: memberUser.String(), ClubId: uuid.New().String()},
+			searchResp:       []*members.Member{testMember},
+			findByMemberResp: []*members.ClubMembership{testMembership},
+			wantCount:        0,
 		},
 		{
 			name:       "No results",
@@ -331,13 +463,17 @@ func TestGetMembersByUser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := mockMemberRepository{
+			memberRepo := mockMemberRepository{
 				searchFunc: func(_ context.Context, _ *domain.SearchParams) ([]*members.Member, error) {
 					return tt.searchResp, tt.searchErr
 				},
 			}
+			msRepo := noopMembershipRepo()
+			msRepo.findByMemberFunc = func(_ context.Context, _ string) ([]*members.ClubMembership, error) {
+				return tt.findByMemberResp, nil
+			}
 
-			svc := newTestMemberService(repo)
+			svc := newTestMemberService(memberRepo, msRepo)
 			res, err := svc.GetMembersByUser(context.Background(), tt.req)
 
 			if tt.wantErr {

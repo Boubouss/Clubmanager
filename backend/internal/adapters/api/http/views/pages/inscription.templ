@@ -1,0 +1,59 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/http/views/components"
+	"clubmanager/internal/adapters/api/http/views/layout"
+)
+
+templ Inscription(errors map[string]string, csrfToken string) {
+	@layout.Base("Inscription") {
+		<!-- Atmospheric background -->
+		<div class="absolute inset-0 z-0 opacity-5 pointer-events-none overflow-hidden">
+			<div class="absolute top-0 right-0 w-96 h-96 bg-primary rounded-full blur-3xl -mr-48 -mt-48"></div>
+			<div class="absolute bottom-0 left-0 w-96 h-96 bg-secondary-container rounded-full blur-3xl -ml-48 -mb-48"></div>
+		</div>
+		<main class="relative flex-grow flex items-center justify-center px-4 py-lg">
+			<div class="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 bg-surface-container-lowest border border-outline-variant shadow-sm rounded-xl overflow-hidden z-10">
+				<!-- Left: Brand panel -->
+				<div class="hidden lg:flex flex-col justify-between p-12 bg-primary-container text-on-primary relative overflow-hidden">
+					<div class="z-10">
+						<h1 class="font-headline-lg text-headline-lg text-white mb-4">Rejoignez la discipline.</h1>
+						<p class="font-body-md text-body-md text-primary-fixed opacity-90 leading-relaxed max-w-sm">
+							Optimisez la gestion de votre club avec notre interface professionnelle dédiée aux instructeurs et administrateurs.
+						</p>
+					</div>
+					<div class="z-10 space-y-6">
+						<div class="flex items-start gap-4">
+							<span class="material-symbols-outlined text-secondary-fixed-dim">verified</span>
+							<div>
+								<p class="font-semibold text-white text-sm">Gestion des membres</p>
+								<p class="font-body-sm text-body-sm text-primary-fixed opacity-70">Suivi précis de la progression de chaque élève.</p>
+							</div>
+						</div>
+						<div class="flex items-start gap-4">
+							<span class="material-symbols-outlined text-secondary-fixed-dim">payments</span>
+							<div>
+								<p class="font-semibold text-white text-sm">Cotisations</p>
+								<p class="font-body-sm text-body-sm text-primary-fixed opacity-70">Automatisation et visibilité sur les paiements.</p>
+							</div>
+						</div>
+					</div>
+				</div>
+				<!-- Right: Form -->
+				<div class="p-8 md:p-12 flex flex-col justify-center">
+					<div class="mb-8">
+						<h2 class="font-headline-md text-headline-md text-primary mb-2">Créer mon compte</h2>
+						<p class="font-body-sm text-body-sm text-on-surface-variant">Commencez dès aujourd'hui à structurer votre club.</p>
+					</div>
+					@components.RegisterForm(errors, csrfToken)
+					<div class="mt-8 text-center">
+						<p class="font-body-sm text-body-sm text-on-surface-variant">
+							Déjà membre ?&#32;
+							<a href="/user/connexion" class="font-semibold text-primary hover:underline">Se connecter</a>
+						</p>
+					</div>
+				</div>
+			</div>
+		</main>
+	}
+}

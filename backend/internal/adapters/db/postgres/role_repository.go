@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"clubmanager/internal/adapters/api/grpc/dto"
 	"clubmanager/internal/domain"
 	"clubmanager/internal/domain/roles"
 	"context"
@@ -81,6 +82,9 @@ func (r roleRepository) Search(ctx context.Context, params *domain.SearchParams)
 		}
 		list = append(list, &role)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return list, nil
 }
 
@@ -110,4 +114,33 @@ func (r roleRepository) IsSuperAdmin(ctx context.Context, userId string) (bool, 
 		SELECT is_superadmin FROM users WHERE id = $1
 	`, userId).Scan(&isSuperAdmin)
 	return isSuperAdmin, err
+}
+
+// FindStaffContactsByClub returns contact info for all members with a staff/coach role in a club.
+// Uses a single JOIN across roles → members → users, filtering on the primary member profile.
+func (r roleRepository) FindStaffContactsByClub(ctx context.Context, clubId string) ([]dto.StaffContact, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT m.firstname, m.lastname, ro.role,
+		       u.email, COALESCE(u.phonenumber, '')
+		FROM roles ro
+		JOIN users u ON u.id = ro.user_id
+		JOIN members m ON m.user_id = ro.user_id AND m.is_primary = true
+		WHERE ro.club_id = $1
+		  AND ro.role IN ('president', 'staff', 'coach')
+		ORDER BY ro.role, m.lastname, m.firstname
+	`, clubId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []dto.StaffContact
+	for rows.Next() {
+		var sc dto.StaffContact
+		if err := rows.Scan(&sc.Firstname, &sc.Lastname, &sc.Role, &sc.Email, &sc.Phone); err != nil {
+			return nil, err
+		}
+		list = append(list, sc)
+	}
+	return list, rows.Err()
 }

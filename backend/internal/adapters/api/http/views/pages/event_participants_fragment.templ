@@ -1,0 +1,56 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/grpc/dto"
+	"fmt"
+)
+
+templ AgeGroupParticipantsFragment(title string, rows []dto.ParticipantRow, isManager bool, eventId string, csrfToken string) {
+	<div>
+		<p class="font-body-sm text-body-sm text-on-surface-variant mb-md">
+			<span class="font-semibold text-on-surface">{ title }</span>
+			— { fmt.Sprintf("%d inscrit(s)", len(rows)) }
+		</p>
+		if len(rows) == 0 {
+			<p class="font-body-md text-body-md text-on-surface-variant text-center py-md">Aucun participant dans cette catégorie.</p>
+		} else {
+			<table class="w-full">
+				<thead>
+					<tr class="border-b border-outline-variant">
+						<th class="text-left py-sm font-body-sm text-body-sm font-semibold text-on-surface-variant">Nom</th>
+						<th class="text-left py-sm font-body-sm text-body-sm font-semibold text-on-surface-variant">Catégorie / Rôle</th>
+						if isManager {
+							<th class="py-sm"></th>
+						}
+					</tr>
+				</thead>
+				<tbody>
+					for _, row := range rows {
+						<tr class="border-b border-outline-variant last:border-0 hover:bg-surface-container-low transition-colors">
+							<td class="py-sm font-body-md text-body-md text-on-surface font-bold">{ row.MemberName }</td>
+							<td class="py-sm font-body-sm text-body-sm text-on-surface-variant">
+								if row.CategoryLabel != "" {
+									{ row.CategoryLabel }
+								} else {
+									{ eventRoleLabel(row.Participant.Role) }
+								}
+							</td>
+							if isManager {
+								<td class="py-sm text-right">
+									<form method="POST" action={ templ.SafeURL("/events/" + eventId + "/remove-participant") }>
+										<input type="hidden" name="_csrf" value={ csrfToken }/>
+										<input type="hidden" name="member_id" value={ row.Participant.MemberId.String() }/>
+										<button type="submit" class="inline-flex items-center gap-xs px-xs py-0.5 bg-red-100 text-red-700 rounded font-body-sm text-body-sm hover:bg-red-200 transition-colors cursor-pointer border-none text-[12px]">
+											<span class="material-symbols-outlined text-[14px]">person_remove</span>
+											Retirer
+										</button>
+									</form>
+								</td>
+							}
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+	</div>
+}

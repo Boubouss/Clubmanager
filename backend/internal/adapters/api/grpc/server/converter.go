@@ -6,6 +6,7 @@ import (
 	"clubmanager/internal/domain/events"
 	"clubmanager/internal/domain/licences"
 	"clubmanager/internal/domain/members"
+	"clubmanager/internal/domain/posts"
 	"clubmanager/internal/domain/roles"
 	"clubmanager/internal/domain/users"
 )
@@ -19,23 +20,27 @@ func userProto(u *users.User) *proto.User {
 	}
 }
 
-func memberProto(m *members.Member) *proto.Member {
-	return &proto.Member{
+func memberProto(m *members.Member, ms *members.ClubMembership) *proto.Member {
+	p := &proto.Member{
 		Id:        m.Id.String(),
 		UserId:    m.UserId.String(),
-		ClubId:    m.ClubId.String(),
 		Firstname: m.Firstname,
 		Lastname:  m.Lastname,
 		Birthdate: m.Birthdate,
 		Gender:    m.Gender,
-		IsValid:   m.IsValid,
+		IsPrimary: m.IsPrimary,
 	}
+	if ms != nil {
+		p.ClubId  = ms.ClubId.String()
+		p.IsValid = ms.IsValid
+	}
+	return p
 }
 
 func arrayMemberProto(arr []*members.Member) []*proto.Member {
 	var result []*proto.Member
 	for _, m := range arr {
-		result = append(result, memberProto(m))
+		result = append(result, memberProto(m, nil))
 	}
 	return result
 }
@@ -77,6 +82,7 @@ func clubProto(c *clubs.Club) *proto.Club {
 		PostalCode:  c.PostalCode,
 		Country:     c.Country,
 		Phonenumber: c.Phonenumber,
+		Status:      c.Status,
 	}
 }
 
@@ -221,6 +227,31 @@ func judoCategoryProto(c *events.JudoCategory) *proto.JudoCategory {
 		p.WeightMax = *c.WeightMax
 	}
 	return p
+}
+
+func postProto(p *posts.Post) *proto.Post {
+	if p == nil {
+		return nil
+	}
+	return &proto.Post{
+		Id:         p.Id.String(),
+		ClubId:     p.ClubId.String(),
+		AuthorId:   p.AuthorId.String(),
+		Title:      p.Title,
+		Content:    p.Content,
+		Status:     p.Status,
+		Visibility: p.Visibility,
+		CreatedAt:  p.CreatedAt,
+		UpdatedAt:  p.UpdatedAt,
+	}
+}
+
+func arrayPostProto(arr []*posts.Post) []*proto.Post {
+	var result []*proto.Post
+	for _, p := range arr {
+		result = append(result, postProto(p))
+	}
+	return result
 }
 
 func arrayJudoCategoryProto(arr []*events.JudoCategory) []*proto.JudoCategory {

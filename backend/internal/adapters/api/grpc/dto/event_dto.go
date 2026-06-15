@@ -41,11 +41,22 @@ type GetEventResponse struct {
 
 type ListClubEventsRequest struct {
 	ClubId string
+	// From filters events with date >= From. Zero value means no filter.
+	From     string
+	Limit    int
+	Page     int
+	PageSize int
 }
 
 type ListClubEventsResponse struct {
 	Events []*e.Event
+	Total  int
 	Errors map[string]string
+}
+
+type UpdateEventCategoryRequest struct {
+	JudoCategoryId string
+	WeighInAt      string
 }
 
 type UpdateEventRequest struct {
@@ -57,6 +68,9 @@ type UpdateEventRequest struct {
 	RegistrationCloseAt string
 	Date                string
 	MaxParticipants     int
+	// Categories — when non-nil, replaces all existing event categories.
+	// Pass nil to leave categories unchanged.
+	Categories []*UpdateEventCategoryRequest
 }
 
 func (r UpdateEventRequest) Map() map[string]string {
@@ -149,8 +163,43 @@ type GetEventCarpoolsResponse struct {
 	Errors map[string]string
 }
 
+type MyParticipationRow struct {
+	MemberName   string
+	Role         string
+	CategoryName string // empty for non-competitors
+	WeighInAt    string // empty if no weigh-in scheduled
+	StartsAt     string // empty if no start time scheduled
+}
+
+type CarpoolOfferRow struct {
+	Offer          *e.CarpoolOffer
+	DriverName     string
+	PassengerCount int
+	IsOwnOffer     bool // one of the current user's members is the driver
+	IsPassenger    bool // one of the current user's members is a passenger in this offer
+}
+
 // Judo categories
 
 type ListJudoCategoriesResponse struct {
 	Categories []*e.JudoCategory
+}
+
+// View DTOs
+
+type EnrichedEventCategory struct {
+	EventCat *e.EventCategory
+	JudoCat  *e.JudoCategory
+}
+
+type AgeGroupRow struct {
+	AgeGroup         string
+	Gender           string // "man", "woman", "mixed"
+	ParticipantCount int
+}
+
+type ParticipantRow struct {
+	Participant   *e.EventParticipant
+	MemberName    string
+	CategoryLabel string
 }

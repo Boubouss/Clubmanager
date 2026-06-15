@@ -1,0 +1,21 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/http/views/layout"
+	"strconv"
+)
+
+templ Error(code int, message string) {
+	@layout.Page("Erreur", false) {
+		<div class="flex flex-col items-center justify-center py-xl text-center">
+			<h1 class="font-headline-xl text-[6rem] leading-none font-extrabold text-surface-container-high mb-md">
+				{ strconv.Itoa(code) }
+			</h1>
+			<h2 class="font-headline-md text-headline-md text-on-surface mb-sm">Oups !</h2>
+			<p class="font-body-md text-body-md text-on-surface-variant mb-lg max-w-sm">{ message }</p>
+			<a href="/" class="bg-secondary text-on-secondary px-8 py-3 rounded-lg font-bold font-body-md text-body-md hover:scale-95 transition-transform no-underline">
+				Retour à l'accueil
+			</a>
+		</div>
+	}
+}

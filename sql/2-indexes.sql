@@ -7,10 +7,12 @@ DROP INDEX IF EXISTS idx_clubs_siren;
 DROP INDEX IF EXISTS idx_clubs_name;
 DROP INDEX IF EXISTS idx_clubs_city;
 DROP INDEX IF EXISTS idx_clubs_postal_code;
+DROP INDEX IF EXISTS idx_clubs_status;
 CREATE UNIQUE INDEX idx_clubs_siren ON clubs(siren);
 CREATE INDEX idx_clubs_name ON clubs(LOWER(name));
 CREATE INDEX idx_clubs_city ON clubs(LOWER(city));
 CREATE INDEX idx_clubs_postal_code ON clubs(postal_code);
+CREATE INDEX idx_clubs_status ON clubs(status);
 
 DROP INDEX IF EXISTS idx_licences_member_id;
 DROP INDEX IF EXISTS idx_licences_member_active;
@@ -25,12 +27,20 @@ DROP INDEX IF EXISTS idx_members_lastname;
 DROP INDEX IF EXISTS idx_members_name;
 DROP INDEX IF EXISTS idx_members_birthdate;
 CREATE INDEX idx_members_user_id ON members(user_id);
-CREATE INDEX idx_members_club_id ON members(club_id);
-CREATE INDEX idx_members_user_club ON members(user_id, club_id);
-CREATE INDEX idx_members_firstname ON members(LOWER(firstname), club_id);
-CREATE INDEX idx_members_lastname ON members(LOWER(lastname), club_id);
-CREATE INDEX idx_members_name ON members(LOWER(firstname), LOWER(lastname), club_id);
-CREATE INDEX idx_members_birthdate ON members(birthdate, club_id);
+CREATE INDEX idx_members_primary ON members(user_id) WHERE is_primary = true;
+CREATE INDEX idx_members_firstname ON members(LOWER(firstname));
+CREATE INDEX idx_members_lastname ON members(LOWER(lastname));
+CREATE INDEX idx_members_name ON members(LOWER(firstname), LOWER(lastname));
+CREATE INDEX idx_members_birthdate ON members(birthdate);
+
+DROP INDEX IF EXISTS idx_club_memberships_member_id;
+DROP INDEX IF EXISTS idx_club_memberships_club_id;
+DROP INDEX IF EXISTS idx_club_memberships_member_club;
+DROP INDEX IF EXISTS idx_club_memberships_valid;
+CREATE INDEX idx_club_memberships_member_id ON club_memberships(member_id);
+CREATE INDEX idx_club_memberships_club_id ON club_memberships(club_id);
+CREATE UNIQUE INDEX idx_club_memberships_member_club ON club_memberships(member_id, club_id);
+CREATE INDEX idx_club_memberships_valid ON club_memberships(club_id) WHERE is_valid = true;
 
 DROP INDEX IF EXISTS idx_roles_user_id;
 DROP INDEX IF EXISTS idx_roles_club_id;
@@ -65,6 +75,15 @@ DROP INDEX IF EXISTS idx_carpool_passengers_offer_id;
 DROP INDEX IF EXISTS idx_carpool_passengers_member_id;
 CREATE INDEX idx_carpool_passengers_offer_id ON carpool_passengers(offer_id);
 CREATE INDEX idx_carpool_passengers_member_id ON carpool_passengers(member_id);
+
+DROP INDEX IF EXISTS idx_posts_club_id;
+DROP INDEX IF EXISTS idx_posts_author_id;
+DROP INDEX IF EXISTS idx_posts_club_status;
+DROP INDEX IF EXISTS idx_posts_club_published;
+CREATE INDEX idx_posts_club_id ON posts(club_id);
+CREATE INDEX idx_posts_author_id ON posts(author_id);
+CREATE INDEX idx_posts_club_status ON posts(club_id, status);
+CREATE INDEX idx_posts_club_published ON posts(club_id, created_at DESC) WHERE status = 'published';
 
 DROP INDEX IF EXISTS idx_logs_record_id;
 DROP INDEX IF EXISTS idx_logs_changed_at;

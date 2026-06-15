@@ -1,0 +1,87 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/http/views/layout"
+)
+
+templ MemberCreate(errors map[string]string, csrfToken string) {
+	@layout.Page("Nouveau profil membre", true) {
+		<div class="max-w-xl mx-auto">
+			<a href="/home" class="inline-flex items-center gap-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface mb-lg no-underline">
+				<span class="material-symbols-outlined text-[16px]">arrow_back</span>
+				Retour
+			</a>
+			<div class="bg-surface rounded-xl card-shadow p-lg">
+				<h1 class="font-headline-md text-headline-md text-on-surface mb-xs">Créer un profil membre</h1>
+				<p class="font-body-sm text-body-sm text-on-surface-variant mb-lg">
+					Un profil membre représente une personne physique. Vous pourrez ensuite le rattacher à un ou plusieurs clubs.
+				</p>
+				<form class="flex flex-col gap-md" method="POST" action="/members/new" novalidate>
+					<input type="hidden" name="_csrf" value={ csrfToken }/>
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+						<div class="flex flex-col gap-1.5">
+							<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant" for="firstname">Prénom</label>
+							<input
+								class="w-full px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface placeholder:text-outline input-focus transition-all"
+								type="text" id="firstname" name="firstname" placeholder="Jean"
+							/>
+							if msg, ok := errors["firstname"]; ok {
+								<p class="font-body-sm text-body-sm text-error">{ msg }</p>
+							}
+						</div>
+						<div class="flex flex-col gap-1.5">
+							<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant" for="lastname">Nom</label>
+							<input
+								class="w-full px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface placeholder:text-outline input-focus transition-all"
+								type="text" id="lastname" name="lastname" placeholder="Dupont"
+							/>
+							if msg, ok := errors["lastname"]; ok {
+								<p class="font-body-sm text-body-sm text-error">{ msg }</p>
+							}
+						</div>
+					</div>
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+						<div class="flex flex-col gap-1.5">
+							<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant" for="birthdate">Date de naissance</label>
+							<input
+								class="w-full px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus transition-all"
+								type="date" id="birthdate" name="birthdate"
+							/>
+							if msg, ok := errors["birthdate"]; ok {
+								<p class="font-body-sm text-body-sm text-error">{ msg }</p>
+							}
+						</div>
+						<div class="flex flex-col gap-1.5">
+							<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Genre</label>
+							<div class="flex gap-md pt-2">
+								<label class="flex items-center gap-xs cursor-pointer">
+									<input type="radio" name="gender" value="man" class="accent-primary"/>
+									<span class="font-body-md text-body-md text-on-surface">Homme</span>
+								</label>
+								<label class="flex items-center gap-xs cursor-pointer">
+									<input type="radio" name="gender" value="woman" class="accent-primary"/>
+									<span class="font-body-md text-body-md text-on-surface">Femme</span>
+								</label>
+							</div>
+							if msg, ok := errors["gender"]; ok {
+								<p class="font-body-sm text-body-sm text-error">{ msg }</p>
+							}
+						</div>
+					</div>
+					<label class="flex items-center gap-sm cursor-pointer">
+						<input type="checkbox" name="is_primary" value="true" class="w-4 h-4 accent-primary"/>
+						<span class="font-body-md text-body-md text-on-surface">Profil principal <span class="text-outline font-normal">(hérite des rôles du compte)</span></span>
+					</label>
+					<div class="flex gap-sm pt-2">
+						<button type="submit" class="bg-primary text-on-primary px-6 py-3 rounded-lg font-bold font-body-md text-body-md hover:bg-primary-container transition-colors cursor-pointer border-none">
+							Créer le profil
+						</button>
+						<a href="/home" class="bg-surface-container text-on-surface px-6 py-3 rounded-lg font-bold font-body-md text-body-md hover:bg-surface-container-high transition-colors no-underline border border-outline-variant">
+							Annuler
+						</a>
+					</div>
+				</form>
+			</div>
+		</div>
+	}
+}

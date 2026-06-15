@@ -1,0 +1,82 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/http/views/layout"
+	"clubmanager/internal/domain/members"
+)
+
+templ MemberEdit(m *members.Member, errors map[string]string, csrfToken string) {
+	@layout.Page("Modifier le profil", true) {
+		<div class="max-w-xl mx-auto">
+			<a href="/members" class="inline-flex items-center gap-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface mb-lg no-underline">
+				<span class="material-symbols-outlined text-[16px]">arrow_back</span>
+				Mes profils membres
+			</a>
+			<div class="bg-surface rounded-xl card-shadow p-lg">
+				<h1 class="font-headline-md text-headline-md text-on-surface mb-xs">Modifier le profil</h1>
+				<p class="font-body-sm text-body-sm text-on-surface-variant mb-lg">{ m.Firstname } { m.Lastname }</p>
+				<form class="flex flex-col gap-md" method="POST" action={ templ.SafeURL("/members/" + m.Id.String() + "/edit") } novalidate>
+					<input type="hidden" name="_csrf" value={ csrfToken }/>
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+						<div class="flex flex-col gap-1.5">
+							<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant" for="firstname">Prénom</label>
+							<input
+								class="w-full px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface placeholder:text-outline input-focus transition-all"
+								type="text" id="firstname" name="firstname" value={ m.Firstname }
+							/>
+							if msg, ok := errors["firstname"]; ok {
+								<p class="font-body-sm text-body-sm text-error">{ msg }</p>
+							}
+						</div>
+						<div class="flex flex-col gap-1.5">
+							<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant" for="lastname">Nom</label>
+							<input
+								class="w-full px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface placeholder:text-outline input-focus transition-all"
+								type="text" id="lastname" name="lastname" value={ m.Lastname }
+							/>
+							if msg, ok := errors["lastname"]; ok {
+								<p class="font-body-sm text-body-sm text-error">{ msg }</p>
+							}
+						</div>
+					</div>
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+						<div class="flex flex-col gap-1.5">
+							<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant" for="birthdate">Date de naissance</label>
+							<input
+								class="w-full px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus transition-all"
+								type="date" id="birthdate" name="birthdate" value={ m.Birthdate }
+							/>
+							if msg, ok := errors["birthdate"]; ok {
+								<p class="font-body-sm text-body-sm text-error">{ msg }</p>
+							}
+						</div>
+						<div class="flex flex-col gap-1.5">
+							<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Genre</label>
+							<div class="flex gap-md pt-2">
+								<label class="flex items-center gap-xs cursor-pointer">
+									<input type="radio" name="gender" value="man" class="accent-primary" checked?={ m.Gender == "man" }/>
+									<span class="font-body-md text-body-md text-on-surface">Homme</span>
+								</label>
+								<label class="flex items-center gap-xs cursor-pointer">
+									<input type="radio" name="gender" value="woman" class="accent-primary" checked?={ m.Gender == "woman" }/>
+									<span class="font-body-md text-body-md text-on-surface">Femme</span>
+								</label>
+							</div>
+							if msg, ok := errors["gender"]; ok {
+								<p class="font-body-sm text-body-sm text-error">{ msg }</p>
+							}
+						</div>
+					</div>
+					<div class="flex gap-sm pt-2">
+						<button type="submit" class="bg-primary text-on-primary px-6 py-3 rounded-lg font-bold font-body-md text-body-md hover:bg-primary-container transition-colors cursor-pointer border-none">
+							Enregistrer
+						</button>
+						<a href="/members" class="bg-surface-container text-on-surface px-6 py-3 rounded-lg font-bold font-body-md text-body-md hover:bg-surface-container-high transition-colors no-underline border border-outline-variant">
+							Annuler
+						</a>
+					</div>
+				</form>
+			</div>
+		</div>
+	}
+}

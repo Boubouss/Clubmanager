@@ -18,6 +18,8 @@ service ClubManagerService {
   rpc ReadClub(ReadClubRequest) returns (ReadClubResponse) {}
   rpc UpdateClub(UpdateClubRequest) returns (UpdateClubResponse) {}
   rpc DeleteClub(DeleteClubRequest) returns (DeleteClubResponse) {}
+  rpc ValidateClub(ValidateClubRequest) returns (ValidateClubResponse) {}
+  rpc SuspendClub(SuspendClubRequest) returns (SuspendClubResponse) {}
 
   rpc AddMember(AddMemberRequest) returns (AddMemberResponse) {}
   rpc ValidateMember(ValidateMemberRequest) returns (ValidateMemberResponse) {}
@@ -54,4 +56,10 @@ service ClubManagerService {
   rpc CancelCarpoolOffer(CancelCarpoolOfferRequest) returns (CancelCarpoolOfferResponse) {}
 
   rpc ListJudoCategories(ListJudoCategoriesRequest) returns (ListJudoCategoriesResponse) {}
+
+  rpc CreatePost(CreatePostRequest) returns (CreatePostResponse) {}
+  rpc PublishPost(PublishPostRequest) returns (PublishPostResponse) {}
+  rpc UpdatePost(UpdatePostRequest) returns (UpdatePostResponse) {}
+  rpc DeletePost(DeletePostRequest) returns (DeletePostResponse) {}
+  rpc GetClubPosts(GetClubPostsRequest) returns (GetClubPostsResponse) {}
 }

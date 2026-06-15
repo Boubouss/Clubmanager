@@ -90,7 +90,7 @@ func truncateAll(t *testing.T) {
 		TRUNCATE TABLE
 			carpool_passengers, carpool_offers,
 			event_participants, event_categories,
-			events, licences, roles, members,
+			events, posts, licences, roles, club_memberships, members,
 			clubs, users, logs
 		RESTART IDENTITY CASCADE
 	`)
@@ -129,16 +129,30 @@ func seedClub(t *testing.T, siren, name string) uuid.UUID {
 	return id
 }
 
-func seedMember(t *testing.T, userId, clubId uuid.UUID, firstname, lastname string) uuid.UUID {
+func seedMember(t *testing.T, userId uuid.UUID, firstname, lastname string) uuid.UUID {
 	t.Helper()
 	var id uuid.UUID
 	err := testPool.QueryRow(context.Background(), `
-		INSERT INTO members (user_id, club_id, firstname, lastname, birthdate, gender)
-		VALUES ($1, $2, $3, $4, '2000-01-01', 'man')
+		INSERT INTO members (user_id, firstname, lastname, birthdate, gender)
+		VALUES ($1, $2, $3, '2000-01-01', 'man')
 		RETURNING id
-	`, userId, clubId, firstname, lastname).Scan(&id)
+	`, userId, firstname, lastname).Scan(&id)
 	if err != nil {
 		t.Fatalf("seedMember %q %q: %v", firstname, lastname, err)
+	}
+	return id
+}
+
+func seedClubMembership(t *testing.T, memberId, clubId uuid.UUID) uuid.UUID {
+	t.Helper()
+	var id uuid.UUID
+	err := testPool.QueryRow(context.Background(), `
+		INSERT INTO club_memberships (member_id, club_id)
+		VALUES ($1, $2)
+		RETURNING id
+	`, memberId, clubId).Scan(&id)
+	if err != nil {
+		t.Fatalf("seedClubMembership member=%s club=%s: %v", memberId, clubId, err)
 	}
 	return id
 }

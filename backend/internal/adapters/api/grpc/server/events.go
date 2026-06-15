@@ -51,7 +51,11 @@ func (s ClubManagerServiceServer) GetEvent(ctx context.Context, req *proto.GetEv
 }
 
 func (s ClubManagerServiceServer) ListClubEvents(ctx context.Context, req *proto.ListClubEventsRequest) (*proto.ListClubEventsResponse, error) {
-	res, err := s.esvc.ListClubEvents(ctx, req.ClubId)
+	res, err := s.esvc.ListClubEvents(ctx, &dto.ListClubEventsRequest{
+		ClubId: req.ClubId,
+		From:   req.From,
+		Limit:  int(req.Limit),
+	})
 	if err != nil {
 		return nil, err
 	}

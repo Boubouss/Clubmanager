@@ -1,0 +1,40 @@
+package layout
+
+templ Header(isAuth bool) {
+	<header class="bg-surface sticky top-0 z-50 shadow-sm">
+		<div class="flex justify-between items-center w-full px-gutter max-w-container-max mx-auto h-16">
+			<div class="flex items-center gap-md">
+				if isAuth {
+					<a href="/home" class="font-headline-md text-headline-md font-bold text-primary no-underline hover:no-underline">ClubManager</a>
+				} else {
+					<a href="/" class="font-headline-md text-headline-md font-bold text-primary no-underline hover:no-underline">ClubManager</a>
+				}
+				if isAuth {
+					<nav class="hidden md:flex gap-sm items-center">
+						<a href="/home" class="text-on-surface-variant hover:text-primary transition-colors font-body-md text-body-md">Accueil</a>
+						<a href="/clubs" class="text-on-surface-variant hover:text-primary transition-colors font-body-md text-body-md">Clubs</a>
+						<a href="/members" class="text-on-surface-variant hover:text-primary transition-colors font-body-md text-body-md">Membres</a>
+					</nav>
+				}
+			</div>
+			<div class="flex items-center gap-sm">
+				if isAuth {
+					<form method="POST" action="/user/deconnexion">
+						<button type="submit" class="flex items-center gap-xs px-sm py-xs text-on-surface-variant font-body-sm text-body-sm hover:bg-surface-container-low rounded-lg transition-all cursor-pointer border-none bg-transparent">
+							<span class="material-symbols-outlined text-[18px]">logout</span>
+							<span class="hidden sm:inline">Déconnexion</span>
+						</button>
+					</form>
+				} else {
+					<a href="/user/connexion" class="hidden sm:flex items-center gap-xs px-sm py-xs text-on-surface-variant font-body-sm text-body-sm hover:bg-surface-container-low rounded-lg transition-all">
+						<span class="material-symbols-outlined text-[18px]">login</span>
+						Connexion
+					</a>
+					<a href="/user/inscription" class="bg-primary text-on-primary px-md py-sm rounded-lg font-bold font-body-md text-body-md shadow-sm hover:scale-95 active:scale-90 transition-transform no-underline">
+						Créer un compte
+					</a>
+				}
+			</div>
+		</div>
+	</header>
+}

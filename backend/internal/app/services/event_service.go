@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"clubmanager/internal/adapters/api/grpc/dto"
 	"clubmanager/internal/domain"
+	"clubmanager/internal/domain/clubs"
 	"clubmanager/internal/domain/events"
 	"clubmanager/internal/domain/licences"
 	"clubmanager/internal/domain/members"
@@ -16,13 +17,29 @@ import (
 	"github.com/google/uuid"
 )
 
+// ErrValidation is returned by service methods when a business rule is violated.
+// HTTP handlers should treat it as a user-facing error, not a 500.
+var ErrValidation = fmt.Errorf("validation error")
+
+// EventUpcomingPort is the port for fetching upcoming events for a club.
+type EventUpcomingPort interface {
+	FindUpcoming(ctx context.Context, clubId string, from time.Time, limit int) ([]*events.Event, error)
+}
+
+// EventClubListPort is the port for paginated club event listing.
+type EventClubListPort interface {
+	FindByClub(ctx context.Context, clubId string, page, pageSize int) ([]*events.Event, int, error)
+}
+
 type EventService interface {
 	CreateEvent(context.Context, *dto.CreateEventRequest) (*dto.CreateEventResponse, error)
 	GetEvent(context.Context, string) (*dto.GetEventResponse, error)
-	ListClubEvents(context.Context, string) (*dto.ListClubEventsResponse, error)
+	ListClubEvents(context.Context, *dto.ListClubEventsRequest) (*dto.ListClubEventsResponse, error)
 	UpdateEvent(context.Context, *dto.UpdateEventRequest) (*dto.UpdateEventResponse, error)
 	CancelEvent(context.Context, string) (bool, error)
+	DeleteEvent(context.Context, string) (bool, error)
 	OpenEvent(context.Context, string) (bool, error)
+	ReopenEvent(context.Context, string) (bool, error)
 
 	RegisterParticipant(context.Context, *dto.RegisterParticipantRequest) (*dto.RegisterParticipantResponse, error)
 	UnregisterParticipant(context.Context, *dto.UnregisterParticipantRequest) (bool, error)
@@ -34,44 +51,63 @@ type EventService interface {
 	JoinCarpoolOffer(context.Context, string, string) (bool, error)
 	LeaveCarpoolOffer(context.Context, string, string) (bool, error)
 	GetEventCarpools(context.Context, string) (*dto.GetEventCarpoolsResponse, error)
+	GetEventCarpoolPassengers(context.Context, string) ([]*events.CarpoolPassenger, error)
 	CancelCarpoolOffer(context.Context, string) (bool, error)
 
 	ListJudoCategories(context.Context) (*dto.ListJudoCategoriesResponse, error)
 }
 
 type EventServiceConfig struct {
-	EventRepo       domain.Repository[events.Event, string]
-	CategoryRepo    events.EventCategoryRepository
-	ParticipantRepo events.ParticipantRepository
-	CarpoolRepo     events.CarpoolRepository
-	JudoCatRepo     events.JudoCategoryRepository
-	MemberRepo      domain.Repository[members.Member, string]
-	LicenceRepo     domain.Repository[licences.Licence, string]
-	RoleChecker     roles.RoleChecker
+	EventRepo          domain.Repository[events.Event, string]
+	EventUpcomingPort  EventUpcomingPort
+	EventClubListPort  EventClubListPort
+	CategoryRepo       events.EventCategoryRepository
+	ParticipantRepo    events.ParticipantRepository
+	CarpoolRepo        events.CarpoolRepository
+	JudoCatRepo        events.JudoCategoryRepository
+	MemberRepo         domain.Repository[members.Member, string]
+	LicenceRepo        domain.Repository[licences.Licence, string]
+	RoleChecker        roles.RoleChecker
+	ClubStatusChecker  clubs.ClubStatusChecker
 }
 
 type eventService struct {
-	eventRepo       domain.Repository[events.Event, string]
-	categoryRepo    events.EventCategoryRepository
-	participantRepo events.ParticipantRepository
-	carpoolRepo     events.CarpoolRepository
-	judoCatRepo     events.JudoCategoryRepository
-	memberRepo      domain.Repository[members.Member, string]
-	licenceRepo     domain.Repository[licences.Licence, string]
-	roleChecker     roles.RoleChecker
+	eventRepo         domain.Repository[events.Event, string]
+	eventUpcomingPort EventUpcomingPort
+	eventClubListPort EventClubListPort
+	categoryRepo      events.EventCategoryRepository
+	participantRepo   events.ParticipantRepository
+	carpoolRepo       events.CarpoolRepository
+	judoCatRepo       events.JudoCategoryRepository
+	memberRepo        domain.Repository[members.Member, string]
+	licenceRepo       domain.Repository[licences.Licence, string]
+	roleChecker       roles.RoleChecker
+	clubStatusChecker clubs.ClubStatusChecker
 }
 
 func NewEventService(cfg EventServiceConfig) *eventService {
 	return &eventService{
-		eventRepo:       cfg.EventRepo,
-		categoryRepo:    cfg.CategoryRepo,
-		participantRepo: cfg.ParticipantRepo,
-		carpoolRepo:     cfg.CarpoolRepo,
-		judoCatRepo:     cfg.JudoCatRepo,
-		memberRepo:      cfg.MemberRepo,
-		licenceRepo:     cfg.LicenceRepo,
-		roleChecker:     cfg.RoleChecker,
+		eventRepo:         cfg.EventRepo,
+		eventUpcomingPort: cfg.EventUpcomingPort,
+		eventClubListPort: cfg.EventClubListPort,
+		categoryRepo:      cfg.CategoryRepo,
+		participantRepo:   cfg.ParticipantRepo,
+		carpoolRepo:       cfg.CarpoolRepo,
+		judoCatRepo:       cfg.JudoCatRepo,
+		memberRepo:        cfg.MemberRepo,
+		licenceRepo:       cfg.LicenceRepo,
+		roleChecker:       cfg.RoleChecker,
+		clubStatusChecker: cfg.ClubStatusChecker,
 	}
+}
+
+// parseTimestamp handles both RFC3339 ("2006-01-02T15:04:05Z07:00") and the
+// PostgreSQL text representation ("2006-01-02 15:04:05-07").
+func parseTimestamp(s string) (time.Time, error) {
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t, nil
+	}
+	return time.Parse("2006-01-02 15:04:05-07", s)
 }
 
 // ── Event CRUD ──────────────────────────────────────────────────────────────
@@ -95,6 +131,19 @@ func (s *eventService) CreateEvent(ctx context.Context, data *dto.CreateEventReq
 	event, errs := events.NewEvent(data.ClubId, userId, params)
 	if len(errs) > 0 {
 		return &dto.CreateEventResponse{Errors: errs}, nil
+	}
+
+	// Block event creation if the club is not active.
+	if s.clubStatusChecker != nil {
+		active, err := s.clubStatusChecker.IsActive(ctx, data.ClubId)
+		if err != nil {
+			return nil, fmt.Errorf("check club status: %w", err)
+		}
+		if !active {
+			return &dto.CreateEventResponse{
+				Errors: map[string]string{"club": "Club is not active. Events cannot be created for a pending or suspended club."},
+			}, nil
+		}
 	}
 
 	if data.MaxParticipants > 0 {
@@ -141,16 +190,50 @@ func (s *eventService) GetEvent(ctx context.Context, id string) (*dto.GetEventRe
 	return &dto.GetEventResponse{Event: event, Categories: cats, Errors: make(map[string]string)}, nil
 }
 
-func (s *eventService) ListClubEvents(ctx context.Context, clubId string) (*dto.ListClubEventsResponse, error) {
+func (s *eventService) ListClubEvents(ctx context.Context, req *dto.ListClubEventsRequest) (*dto.ListClubEventsResponse, error) {
+	if req.From != "" && s.eventUpcomingPort != nil {
+		from, err := time.Parse("2006-01-02", req.From)
+		if err != nil {
+			return &dto.ListClubEventsResponse{
+				Errors: map[string]string{"from": "Invalid date format, expected YYYY-MM-DD."},
+			}, nil
+		}
+		limit := req.Limit
+		if limit <= 0 {
+			limit = 20
+		}
+		list, err := s.eventUpcomingPort.FindUpcoming(ctx, req.ClubId, from, limit)
+		if err != nil {
+			return nil, err
+		}
+		return &dto.ListClubEventsResponse{Events: list, Total: len(list), Errors: make(map[string]string)}, nil
+	}
+
+	if s.eventClubListPort != nil {
+		page := req.Page
+		if page <= 0 {
+			page = 1
+		}
+		pageSize := req.PageSize
+		if pageSize <= 0 {
+			pageSize = 20
+		}
+		list, total, err := s.eventClubListPort.FindByClub(ctx, req.ClubId, page, pageSize)
+		if err != nil {
+			return nil, err
+		}
+		return &dto.ListClubEventsResponse{Events: list, Total: total, Errors: make(map[string]string)}, nil
+	}
+
 	list, err := s.eventRepo.Search(ctx, &domain.SearchParams{
-		Fields:    map[string]any{"club_id": clubId},
+		Fields:    map[string]any{"club_id": req.ClubId},
 		Keys:      map[string]bool{"club_id": true},
 		Connector: "AND",
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &dto.ListClubEventsResponse{Events: list, Errors: make(map[string]string)}, nil
+	return &dto.ListClubEventsResponse{Events: list, Total: len(list), Errors: make(map[string]string)}, nil
 }
 
 func (s *eventService) UpdateEvent(ctx context.Context, data *dto.UpdateEventRequest) (*dto.UpdateEventResponse, error) {
@@ -180,6 +263,29 @@ func (s *eventService) UpdateEvent(ctx context.Context, data *dto.UpdateEventReq
 	if err != nil {
 		return nil, err
 	}
+
+	// Replace categories when provided.
+	if data.Categories != nil {
+		if err := s.categoryRepo.DeleteByEvent(ctx, data.Id); err != nil {
+			return nil, err
+		}
+		for _, cr := range data.Categories {
+			jcId, err := uuid.Parse(cr.JudoCategoryId)
+			if err != nil {
+				return nil, fmt.Errorf("invalid judo_category_id: %w", err)
+			}
+			cat := &events.EventCategory{
+				EventId:        saved.Id,
+				JudoCategoryId: jcId,
+				WeighInAt:      cr.WeighInAt,
+				Status:         events.CategoryStatusPending,
+			}
+			if _, err := s.categoryRepo.Save(ctx, cat); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	return &dto.UpdateEventResponse{Event: saved, Errors: make(map[string]string)}, nil
 }
 
@@ -207,6 +313,26 @@ func (s *eventService) CancelEvent(ctx context.Context, id string) (bool, error)
 	return true, nil
 }
 
+func (s *eventService) DeleteEvent(ctx context.Context, id string) (bool, error) {
+	userId, ok := ctx.Value("user_id").(string)
+	if !ok || userId == "" {
+		return false, fmt.Errorf("unauthorized")
+	}
+
+	event, err := s.eventRepo.Find(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	if event == nil {
+		return false, fmt.Errorf("event not found")
+	}
+	if err := s.requireEventManager(ctx, userId, event); err != nil {
+		return false, err
+	}
+
+	return s.eventRepo.Delete(ctx, id)
+}
+
 func (s *eventService) OpenEvent(ctx context.Context, id string) (bool, error) {
 	userId, ok := ctx.Value("user_id").(string)
 	if !ok || userId == "" {
@@ -224,7 +350,65 @@ func (s *eventService) OpenEvent(ctx context.Context, id string) (bool, error) {
 		return false, err
 	}
 
+	// For competitions, every category must have a weigh-in time set.
+	if event.Type == events.TypeCompetition {
+		cats, err := s.categoryRepo.FindByEvent(ctx, id)
+		if err != nil {
+			return false, err
+		}
+		if len(cats) == 0 {
+			return false, fmt.Errorf("%w: une compétition doit avoir au moins une catégorie", ErrValidation)
+		}
+		judoCats, err := s.judoCatRepo.FindAll(ctx)
+		if err != nil {
+			return false, err
+		}
+		judoCatMap := make(map[string]*events.JudoCategory, len(judoCats))
+		for _, jc := range judoCats {
+			judoCatMap[jc.Id.String()] = jc
+		}
+		for _, cat := range cats {
+			if cat.WeighInAt == "" {
+				jc := judoCatMap[cat.JudoCategoryId.String()]
+				label := cat.JudoCategoryId.String()
+				if jc != nil {
+					label = jc.AgeGroup
+					if jc.Gender == "man" {
+						label += " Masculin"
+					} else if jc.Gender == "woman" {
+						label += " Féminin"
+					}
+				}
+				return false, fmt.Errorf("%w: heure de pesée manquante pour la catégorie %q", ErrValidation, label)
+			}
+		}
+	}
+
 	event.Status = events.StatusOpen
+	if _, err := s.eventRepo.Save(ctx, event); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (s *eventService) ReopenEvent(ctx context.Context, id string) (bool, error) {
+	userId, ok := ctx.Value("user_id").(string)
+	if !ok || userId == "" {
+		return false, fmt.Errorf("unauthorized")
+	}
+
+	event, err := s.eventRepo.Find(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	if event == nil {
+		return false, fmt.Errorf("event not found")
+	}
+	if err := s.requireEventManager(ctx, userId, event); err != nil {
+		return false, err
+	}
+
+	event.Status = events.StatusDraft
 	if _, err := s.eventRepo.Save(ctx, event); err != nil {
 		return false, err
 	}
@@ -280,11 +464,11 @@ func (s *eventService) RegisterParticipant(ctx context.Context, data *dto.Regist
 
 	// Registration period must be active
 	now := time.Now()
-	tOpen, err := time.Parse(time.RFC3339, event.RegistrationOpenAt)
+	tOpen, err := parseTimestamp(event.RegistrationOpenAt)
 	if err != nil {
 		return nil, fmt.Errorf("invalid event registration_open_at format: %w", err)
 	}
-	tClose, err := time.Parse(time.RFC3339, event.RegistrationCloseAt)
+	tClose, err := parseTimestamp(event.RegistrationCloseAt)
 	if err != nil {
 		return nil, fmt.Errorf("invalid event registration_close_at format: %w", err)
 	}
@@ -319,9 +503,9 @@ func (s *eventService) RegisterParticipant(ctx context.Context, data *dto.Regist
 		}
 	}
 
-	// Coach role: must have coach role in the club
+	// Coach role: must have coach role in the club that organises the event.
 	if data.Role == events.RoleCoach {
-		ok, err := s.roleChecker.HasRole(ctx, member.UserId.String(), member.ClubId.String(), roles.RoleCoach)
+		ok, err := s.roleChecker.HasRole(ctx, member.UserId.String(), event.ClubId.String(), roles.RoleCoach)
 		if err != nil {
 			return nil, err
 		}
@@ -436,7 +620,7 @@ func (s *eventService) UnregisterParticipant(ctx context.Context, data *dto.Unre
 	}
 
 	now := time.Now()
-	tClose, err := time.Parse(time.RFC3339, event.RegistrationCloseAt)
+	tClose, err := parseTimestamp(event.RegistrationCloseAt)
 	if err != nil {
 		return false, fmt.Errorf("invalid event registration_close_at format: %w", err)
 	}
@@ -633,12 +817,15 @@ func (s *eventService) LeaveCarpoolOffer(ctx context.Context, offerId, memberId 
 }
 
 func (s *eventService) GetEventCarpools(ctx context.Context, eventId string) (*dto.GetEventCarpoolsResponse, error) {
-	// Only registered participants can see carpools
 	list, err := s.carpoolRepo.FindOffersByEvent(ctx, eventId)
 	if err != nil {
 		return nil, err
 	}
 	return &dto.GetEventCarpoolsResponse{Offers: list, Errors: make(map[string]string)}, nil
+}
+
+func (s *eventService) GetEventCarpoolPassengers(ctx context.Context, eventId string) ([]*events.CarpoolPassenger, error) {
+	return s.carpoolRepo.FindPassengersByEvent(ctx, eventId)
 }
 
 func (s *eventService) CancelCarpoolOffer(ctx context.Context, offerId string) (bool, error) {

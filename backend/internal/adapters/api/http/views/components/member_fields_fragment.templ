@@ -1,0 +1,61 @@
+package components
+
+import "clubmanager/internal/domain/members"
+
+// MemberFieldsFragment is returned by the HTMX endpoint.
+// member == nil means "new profile" — show the creation fields.
+// member != nil means an existing profile was selected — show a summary.
+templ MemberFieldsFragment(member *members.Member) {
+	if member == nil {
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+			<div class="flex flex-col gap-1.5">
+				<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant" for="president_firstname">Prénom</label>
+				<input
+					class="w-full px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface placeholder:text-outline input-focus transition-all"
+					type="text" id="president_firstname" name="president_firstname" placeholder="Jean"
+				/>
+			</div>
+			<div class="flex flex-col gap-1.5">
+				<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant" for="president_lastname">Nom</label>
+				<input
+					class="w-full px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface placeholder:text-outline input-focus transition-all"
+					type="text" id="president_lastname" name="president_lastname" placeholder="Dupont"
+				/>
+			</div>
+		</div>
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
+			<div class="flex flex-col gap-1.5">
+				<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant" for="president_birthdate">Date de naissance</label>
+				<input
+					class="w-full px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus transition-all"
+					type="date" id="president_birthdate" name="president_birthdate"
+				/>
+			</div>
+			<div class="flex flex-col gap-1.5">
+				<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Genre</label>
+				<div class="flex gap-md pt-2">
+					<label class="flex items-center gap-xs cursor-pointer">
+						<input type="radio" name="president_gender" value="man" class="accent-primary"/>
+						<span class="font-body-md text-body-md text-on-surface">Homme</span>
+					</label>
+					<label class="flex items-center gap-xs cursor-pointer">
+						<input type="radio" name="president_gender" value="woman" class="accent-primary"/>
+						<span class="font-body-md text-body-md text-on-surface">Femme</span>
+					</label>
+				</div>
+			</div>
+		</div>
+	} else {
+		<div class="flex items-center gap-md p-md bg-surface-container-low rounded-lg border border-outline-variant">
+			<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center flex-shrink-0">
+				<span class="font-bold font-body-md text-body-md text-on-secondary-container">
+					{ string([]rune(member.Firstname)[0:1]) }
+				</span>
+			</div>
+			<div>
+				<p class="font-bold font-body-md text-body-md text-on-surface">{ member.Firstname } { member.Lastname }</p>
+				<p class="font-body-sm text-body-sm text-on-surface-variant">{ member.Birthdate } · { member.Gender }</p>
+			</div>
+		</div>
+	}
+}

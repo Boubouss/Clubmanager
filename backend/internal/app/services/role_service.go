@@ -3,6 +3,7 @@ package services
 import (
 	"clubmanager/internal/adapters/api/grpc/dto"
 	"clubmanager/internal/domain"
+	"clubmanager/internal/domain/clubs"
 	"clubmanager/internal/domain/roles"
 	"context"
 	"fmt"
@@ -19,17 +20,23 @@ type RoleService interface {
 }
 
 type RoleServiceConfig struct {
-	Repository  domain.Repository[roles.Role, string]
-	RoleChecker roles.RoleChecker
+	Repository        domain.Repository[roles.Role, string]
+	RoleChecker       roles.RoleChecker
+	ClubStatusChecker clubs.ClubStatusChecker
 }
 
 type roleService struct {
-	repo    domain.Repository[roles.Role, string]
-	checker roles.RoleChecker
+	repo              domain.Repository[roles.Role, string]
+	checker           roles.RoleChecker
+	clubStatusChecker clubs.ClubStatusChecker
 }
 
 func NewRoleService(config RoleServiceConfig) *roleService {
-	return &roleService{repo: config.Repository, checker: config.RoleChecker}
+	return &roleService{
+		repo:              config.Repository,
+		checker:           config.RoleChecker,
+		clubStatusChecker: config.ClubStatusChecker,
+	}
 }
 
 func (s *roleService) AssignRole(ctx context.Context, data *dto.AssignRoleRequest) (*dto.AssignRoleResponse, error) {
@@ -69,6 +76,19 @@ func (s *roleService) AssignRole(ctx context.Context, data *dto.AssignRoleReques
 		if !canAssign {
 			return &dto.AssignRoleResponse{
 				Errors: map[string]string{"role": "Insufficient permissions to assign this role."},
+			}, nil
+		}
+	}
+
+	// Block role assignment if the club is not active.
+	if s.clubStatusChecker != nil {
+		active, err := s.clubStatusChecker.IsActive(ctx, data.ClubId)
+		if err != nil {
+			return nil, fmt.Errorf("check club status: %w", err)
+		}
+		if !active {
+			return &dto.AssignRoleResponse{
+				Errors: map[string]string{"club": "Club is not active. Roles cannot be assigned in a pending or suspended club."},
 			}, nil
 		}
 	}

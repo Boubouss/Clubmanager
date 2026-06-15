@@ -1,0 +1,26 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/http/views/components"
+	"clubmanager/internal/adapters/api/http/views/layout"
+	"clubmanager/internal/domain/members"
+)
+
+templ ClubCreate(errors map[string]string, csrfToken string, userMembers []*members.Member) {
+	@layout.Page("Créer un club", true) {
+		<div class="max-w-2xl mx-auto">
+			<div class="mb-lg">
+				<h1 class="font-headline-lg text-headline-lg text-on-surface mb-xs">Créer un club</h1>
+				<p class="font-body-md text-body-md text-on-surface-variant">
+					Renseignez les informations de votre club. Le SIREN sera vérifié automatiquement.
+				</p>
+			</div>
+			<div class="bg-primary-fixed border-l-4 border-secondary rounded-r-lg px-md py-sm mb-lg font-body-sm text-body-sm text-on-primary-fixed">
+				Si le service Sirene est indisponible, votre club sera créé en statut <strong>en attente</strong> et validé manuellement par un administrateur.
+			</div>
+			<div class="bg-white rounded-xl p-8 card-shadow">
+				@components.ClubForm(errors, csrfToken, userMembers)
+			</div>
+		</div>
+	}
+}

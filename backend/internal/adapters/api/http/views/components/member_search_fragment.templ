@@ -1,0 +1,47 @@
+package components
+
+import "clubmanager/internal/domain/members"
+
+templ MemberSearchFragment(clubId string, results []*members.Member, alreadyInClub map[string]bool, csrfToken string) {
+	if results == nil {
+		<!-- no search yet -->
+	} else if len(results) == 0 {
+		<p class="font-body-sm text-body-sm text-on-surface-variant">Aucun profil trouvé pour cet email.</p>
+	} else {
+		<div class="flex flex-col gap-sm">
+			for _, m := range results {
+				if alreadyInClub[m.Id.String()] {
+					<div class="flex items-center gap-md p-md bg-surface-container-low rounded-lg border border-outline-variant opacity-60">
+						<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center flex-shrink-0">
+							<span class="font-bold font-body-md text-body-md text-on-secondary-container">
+								{ string([]rune(m.Firstname)[0:1]) }
+							</span>
+						</div>
+						<div class="flex-1">
+							<p class="font-bold font-body-md text-body-md text-on-surface">{ m.Firstname } { m.Lastname }</p>
+							<p class="font-body-sm text-body-sm text-on-surface-variant">{ m.Birthdate } · { m.Gender }</p>
+						</div>
+						<span class="font-data-label text-data-label bg-surface-container text-on-surface-variant px-sm py-1 rounded-full">Déjà membre</span>
+					</div>
+				} else {
+					<form method="POST" action={ templ.SafeURL("/clubs/" + clubId + "/members/add") }>
+						<input type="hidden" name="_csrf" value={ csrfToken }/>
+						<input type="hidden" name="existing_member_id" value={ m.Id.String() }/>
+						<button type="submit" class="w-full flex items-center gap-md p-md bg-surface rounded-lg border border-outline-variant hover:border-primary hover:bg-primary-container/10 transition-colors cursor-pointer text-left">
+							<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center flex-shrink-0">
+								<span class="font-bold font-body-md text-body-md text-on-secondary-container">
+									{ string([]rune(m.Firstname)[0:1]) }
+								</span>
+							</div>
+							<div class="flex-1">
+								<p class="font-bold font-body-md text-body-md text-on-surface">{ m.Firstname } { m.Lastname }</p>
+								<p class="font-body-sm text-body-sm text-on-surface-variant">{ m.Birthdate } · { m.Gender }</p>
+							</div>
+							<span class="material-symbols-outlined text-primary text-[20px]">person_add</span>
+						</button>
+					</form>
+				}
+			}
+		</div>
+	}
+}

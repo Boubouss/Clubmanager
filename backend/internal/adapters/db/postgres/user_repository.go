@@ -101,7 +101,9 @@ func (r userRepository) Search(ctx context.Context, params *domain.SearchParams)
     }
     list = append(list, &u)
   }
-
+  if err := rows.Err(); err != nil {
+    return nil, err
+  }
   return list, nil
 }
 

@@ -1,0 +1,37 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/http/views/components"
+	"clubmanager/internal/adapters/api/http/views/layout"
+)
+
+templ Connexion(errors map[string]string, csrfToken string) {
+	@layout.Base("Connexion") {
+		<!-- Decorative blobs -->
+		<div class="fixed inset-0 pointer-events-none overflow-hidden opacity-20">
+			<div class="absolute -top-24 -right-24 w-96 h-96 bg-primary-fixed rounded-full blur-3xl"></div>
+			<div class="absolute -bottom-24 -left-24 w-96 h-96 bg-secondary-container rounded-full blur-3xl"></div>
+		</div>
+		<main class="relative flex-grow flex items-center justify-center px-4 py-lg">
+			<div class="w-full max-w-md">
+				<!-- Logo -->
+				<div class="text-center mb-8">
+					<h1 class="font-headline-lg text-headline-lg text-primary">ClubManager</h1>
+					<p class="font-body-md text-body-md text-on-surface-variant mt-2">Gérez votre club avec discipline et clarté.</p>
+				</div>
+				<!-- Card -->
+				<section class="bg-surface-container-lowest border border-outline-variant rounded-xl p-10 shadow-card-md">
+					<h2 class="font-headline-md text-headline-md text-on-surface mb-8">Connexion</h2>
+					@components.LoginForm(errors, csrfToken)
+					<div class="mt-8 pt-6 border-t border-outline-variant text-center">
+						<p class="font-body-sm text-body-sm text-on-surface-variant">
+							Nouveau sur la plateforme ?&#32;
+							<a href="/user/inscription" class="font-semibold text-secondary hover:text-primary transition-colors">Créer un compte</a>
+						</p>
+					</div>
+				</section>
+				<p class="mt-6 text-center font-body-sm text-body-sm text-outline opacity-60">Système de gestion administrative sécurisé &copy; 2025</p>
+			</div>
+		</main>
+	}
+}

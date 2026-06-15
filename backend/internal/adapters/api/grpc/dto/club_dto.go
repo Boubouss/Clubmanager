@@ -3,6 +3,7 @@ package dto
 import c "clubmanager/internal/domain/clubs"
 
 type CreateClubRequest struct {
+	UserId      string
 	Siren       string
 	Name        string
 	Address     string
@@ -76,10 +77,33 @@ type UpdateClubResponse struct {
 	Errors map[string]string
 }
 
+type GetClubResponse struct {
+	Club   *c.Club
+	Errors map[string]string
+}
+
 type DeleteClubRequest struct {
 	Id string
 }
 
 type DeleteClubResponse struct {
 	Ok bool
+}
+
+type ValidateClubRequest struct {
+	ClubId string
+}
+
+type ValidateClubResponse struct {
+	Club   *c.Club
+	Errors map[string]string
+}
+
+type SuspendClubRequest struct {
+	ClubId string
+}
+
+type SuspendClubResponse struct {
+	Club   *c.Club
+	Errors map[string]string
 }

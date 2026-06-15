@@ -2,7 +2,192 @@
 -- age_max NULL = pas de limite supérieure (Veteran)
 -- weight_max NULL = catégorie ouverte (+)
 
+-- ============================================================
+-- Utilisateurs de test
+-- Mots de passe (bcrypt cost 10) :
+--   superadmin@clubmanager.fr  →  Superadmin123!
+--   user@clubmanager.fr        →  User123!
+-- ============================================================
+INSERT INTO users (username, email, password, phonenumber, is_valid, is_superadmin) VALUES
+  (
+    'superadmin',
+    'superadmin@clubmanager.fr',
+    '$2a$10$ouW.kYMhzPdrTNCrDkER5.zgBS6.ydAqjh0brDY6rQ2i8LFh6Lh66',
+    NULL,
+    true,
+    true
+  ),
+  (
+    'testuser',
+    'user@clubmanager.fr',
+    '$2a$10$LSJN9usTiG2R/BIFJr40e.KN25DatoD.wpOE66AlbLbzd6HjZYXZO',
+    '+33 6 12 34 56 78',
+    true,
+    false
+  ),
+  (
+    'testuser2',
+    'user2@clubmanager.fr',
+    '$2a$10$6UMuLiTZ8RXeNZnuap382epnaaBuAKnlvzIrnkwNHJ3hpndIu1I42',
+    '+33 6 98 76 54 32',
+    true,
+    false
+  )
+ON CONFLICT (email) DO NOTHING;
+
+-- ============================================================
+-- Club de test : A3M Mitry Mory
+-- Statut active (SIREN vérifié manuellement)
+-- ============================================================
+INSERT INTO clubs (siren, name, address, city, postal_code, country, phonenumber, status)
+VALUES (
+  '382048650',
+  'A3M',
+  '46 AVENUE JEAN JAURES',
+  'Mitry-Mory',
+  '77290',
+  'FRANCE',
+  '+33 1 60 26 00 00',
+  'active'
+)
+ON CONFLICT (siren) DO NOTHING;
+
+-- ============================================================
+-- Membre : Redwane Bouselham — profil principal de testuser
+-- ============================================================
+INSERT INTO members (user_id, firstname, lastname, birthdate, gender, is_primary)
+SELECT
+  u.id,
+  'Redwane',
+  'Bouselham',
+  '1996-08-30',
+  'man',
+  true
+FROM users u
+WHERE u.email = 'user@clubmanager.fr'
+ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- Membership : Redwane est membre validé de A3M
+-- ============================================================
+INSERT INTO club_memberships (member_id, club_id, is_valid)
+SELECT
+  m.id,
+  c.id,
+  true
+FROM members m
+JOIN users u ON u.id = m.user_id
+JOIN clubs c ON c.siren = '382048650'
+WHERE u.email = 'user@clubmanager.fr'
+  AND m.firstname = 'Redwane'
+  AND m.lastname  = 'Bouselham'
+ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- Membre : Mehdi Bouselham — profil principal de testuser2
+-- ============================================================
+INSERT INTO members (user_id, firstname, lastname, birthdate, gender, is_primary)
+SELECT
+  u.id,
+  'Mehdi',
+  'Bouselham',
+  '2000-01-01',
+  'man',
+  true
+FROM users u
+WHERE u.email = 'user2@clubmanager.fr'
+ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- Membre : Adam Bouselham — profil secondaire de testuser2
+-- ============================================================
+INSERT INTO members (user_id, firstname, lastname, birthdate, gender, is_primary)
+SELECT
+  u.id,
+  'Adam',
+  'Bouselham',
+  '2020-04-14',
+  'man',
+  false
+FROM users u
+WHERE u.email = 'user2@clubmanager.fr'
+ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- Membership : Adam est membre validé de A3M
+-- ============================================================
+INSERT INTO club_memberships (member_id, club_id, is_valid)
+SELECT m.id, c.id, true
+FROM members m
+JOIN users u ON u.id = m.user_id
+JOIN clubs c ON c.siren = '382048650'
+WHERE u.email = 'user2@clubmanager.fr' AND m.firstname = 'Adam'
+ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- Licence : Redwane — saison 2025-2026
+-- ============================================================
+INSERT INTO licences (member_id, licence_number, valid_from, valid_until, status)
+SELECT m.id, 'LIC-REDWANE-2526', '2025-09-01', '2026-08-31', 'active'
+FROM members m
+JOIN users u ON u.id = m.user_id
+WHERE u.email = 'user@clubmanager.fr' AND m.firstname = 'Redwane'
+ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- Licence : Mehdi — saison 2025-2026
+-- ============================================================
+INSERT INTO licences (member_id, licence_number, valid_from, valid_until, status)
+SELECT m.id, 'LIC-MEHDI-2526', '2025-09-01', '2026-08-31', 'active'
+FROM members m
+JOIN users u ON u.id = m.user_id
+WHERE u.email = 'user2@clubmanager.fr' AND m.firstname = 'Mehdi'
+ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- Membership : Mehdi est membre validé de A3M
+-- ============================================================
+INSERT INTO club_memberships (member_id, club_id, is_valid)
+SELECT m.id, c.id, true
+FROM members m
+JOIN users u ON u.id = m.user_id
+JOIN clubs c ON c.siren = '382048650'
+WHERE u.email = 'user2@clubmanager.fr' AND m.firstname = 'Mehdi'
+ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- Rôle : Mehdi est associate dans A3M
+-- ============================================================
+INSERT INTO roles (user_id, club_id, role)
+SELECT u.id, c.id, 'associate'
+FROM users u, clubs c
+WHERE u.email = 'user2@clubmanager.fr' AND c.siren = '382048650'
+ON CONFLICT (user_id, club_id, role) DO NOTHING;
+
+-- ============================================================
+-- Rôle : testuser est président de A3M
+-- ============================================================
+INSERT INTO roles (user_id, club_id, role)
+SELECT
+  u.id,
+  c.id,
+  'president'
+FROM users u, clubs c
+WHERE u.email = 'user@clubmanager.fr'
+  AND c.siren  = '382048650'
+ON CONFLICT (user_id, club_id, role) DO NOTHING;
+
+
 INSERT INTO judo_categories (age_group, gender, age_min, age_max, weight_label, weight_max) VALUES
+-- Eveil Mixte (4-5 ans)
+('Eveil', 'mixed', 4, 5, 'Toutes', NULL),
+
+-- Poussinet Mixte (6-7 ans)
+('Poussinet', 'mixed', 6, 7, 'Toutes', NULL),
+
+-- Poussin Mixte (7-8 ans)
+('Poussin', 'mixed', 7, 8, 'Toutes', NULL),
+
 -- Benjamin Masculin (10-11 ans)
 ('Benjamin', 'man', 10, 11, '-30',  30),
 ('Benjamin', 'man', 10, 11, '-34',  34),
@@ -122,3 +307,54 @@ INSERT INTO judo_categories (age_group, gender, age_min, age_max, weight_label, 
 ('Veteran', 'woman', 35, NULL, '+78',  NULL)
 
 ON CONFLICT (age_group, gender, weight_label) DO NOTHING;
+
+-- ============================================================
+-- Compétition test : Compétition interne A3M (dimanche prochain)
+-- Créée par Redwane, ouverte, toutes catégories Senior (H+F)
+-- Pesée à 08h30, début le 2026-06-14
+-- ============================================================
+INSERT INTO events (club_id, created_by, title, description, type, status, location,
+                    registration_open_at, registration_close_at, date, max_participants)
+SELECT
+  c.id, u.id,
+  'Compétition interne A3M',
+  'Compétition ouverte à tous les membres du club.',
+  'competition', 'open',
+  'Dojo A3M — Mitry-Mory',
+  '2026-06-11 00:00:00+00',
+  '2026-06-12 23:59:00+00',
+  '2026-06-14 09:00:00+00',
+  NULL
+FROM clubs c, users u
+WHERE c.siren = '382048650' AND u.email = 'user@clubmanager.fr'
+ON CONFLICT DO NOTHING;
+
+-- Post d'annonce lié à la compétition
+INSERT INTO posts (club_id, author_id, event_id, title, content, status, visibility)
+SELECT
+  c.id,
+  u.id,
+  e.id,
+  'Compétition interne A3M — Inscriptions ouvertes',
+  'Les inscriptions sont maintenant ouvertes !' || E'\n\n' ||
+  'Date : 14 juin 2026' || E'\n' ||
+  'Lieu : Dojo A3M — Mitry-Mory' || E'\n\n' ||
+  'Compétition ouverte à tous les membres du club.',
+  'published',
+  'adherent'
+FROM events e
+JOIN clubs c ON c.id = e.club_id
+JOIN users u ON u.email = 'user@clubmanager.fr'
+WHERE c.siren = '382048650' AND e.title = 'Compétition interne A3M'
+ON CONFLICT DO NOTHING;
+
+-- Toutes les catégories Senior (homme et femme) avec pesée à 08h30
+INSERT INTO event_categories (event_id, judo_category_id, weigh_in_at, status)
+SELECT e.id, jc.id, '2026-06-14 08:30:00+00', 'pending'
+FROM events e
+JOIN clubs c ON c.id = e.club_id
+CROSS JOIN judo_categories jc
+WHERE c.siren = '382048650'
+  AND e.title = 'Compétition interne A3M'
+  AND jc.age_group = 'Senior'
+ON CONFLICT (event_id, judo_category_id) DO NOTHING;

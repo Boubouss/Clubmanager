@@ -1,0 +1,117 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/http/views/layout"
+	"clubmanager/internal/domain/clubs"
+	"clubmanager/internal/domain/posts"
+	"fmt"
+)
+
+func postStatusLabel(status string) string {
+	if status == "published" {
+		return "Publié"
+	}
+	return "Brouillon"
+}
+
+func postStatusClass(status string) string {
+	if status == "published" {
+		return "bg-green-100 text-green-700"
+	}
+	return "bg-surface-container text-on-surface-variant"
+}
+
+func postVisibilityLabel(v string) string {
+	if v == "public" {
+		return "Public"
+	}
+	return "Membres"
+}
+
+templ PostsList(club *clubs.Club, postList []*posts.Post, total, page, pageSize int, canManage bool, csrfToken string) {
+	@layout.Page("Actualités — "+club.Name, true) {
+		<div class="flex items-center justify-between mb-lg">
+			<div>
+				<a href={ templ.SafeURL("/clubs/" + club.Id.String()) } class="inline-flex items-center gap-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface mb-sm no-underline">
+					<span class="material-symbols-outlined text-[16px]">arrow_back</span>
+					{ club.Name }
+				</a>
+				<h1 class="font-headline-lg text-headline-lg text-on-surface">Actualités</h1>
+			</div>
+			if canManage {
+				<a
+					href={ templ.SafeURL("/clubs/" + club.Id.String() + "/posts/new") }
+					class="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-3 rounded-lg font-bold font-body-md text-body-md hover:bg-primary-container transition-colors no-underline"
+				>
+					<span class="material-symbols-outlined text-[20px]">add</span>
+					Nouveau post
+				</a>
+			}
+		</div>
+
+		if len(postList) == 0 {
+			<div class="bg-surface rounded-xl card-shadow p-xl text-center">
+				<span class="material-symbols-outlined text-[48px] text-outline opacity-40">newspaper</span>
+				<p class="font-body-md text-body-md text-on-surface-variant mt-sm">Aucune actualité pour ce club.</p>
+			</div>
+		} else {
+			<div class="flex flex-col gap-sm">
+				for _, p := range postList {
+					<a href={ templ.SafeURL("/posts/" + p.Id.String()) } class="bg-surface rounded-xl card-shadow card-hover flex items-center gap-md p-md no-underline group">
+						<div class="flex-1 min-w-0">
+							<div class="flex items-center gap-xs mb-xs flex-wrap">
+								<span class={ "font-data-label text-data-label px-sm py-0.5 rounded-full " + postStatusClass(p.Status) }>{ postStatusLabel(p.Status) }</span>
+								<span class="font-data-label text-data-label px-sm py-0.5 rounded-full bg-surface-container text-on-surface-variant">{ postVisibilityLabel(p.Visibility) }</span>
+							</div>
+							<p class="font-bold font-body-lg text-body-lg text-on-surface truncate">{ p.Title }</p>
+							<p class="font-body-sm text-body-sm text-on-surface-variant">{ formatPostDate(p.CreatedAt) }</p>
+						</div>
+						<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors flex-shrink-0">chevron_right</span>
+					</a>
+				}
+			</div>
+
+			if total > pageSize {
+				<div class="flex items-center justify-center gap-sm bg-surface card-shadow rounded-full px-md py-sm border border-outline-variant mx-auto w-fit mt-lg">
+					if page > 1 {
+						<a
+							href={ templ.SafeURL(fmt.Sprintf("/clubs/%s/posts?page=%d", club.Id.String(), page-1)) }
+							class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-surface-container text-on-surface hover:bg-surface-container-high no-underline transition-colors"
+						>
+							<span class="material-symbols-outlined text-[20px]">chevron_left</span>
+						</a>
+					} else {
+						<span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-outline opacity-40">
+							<span class="material-symbols-outlined text-[20px]">chevron_left</span>
+						</span>
+					}
+					<span class="font-body-sm text-body-sm text-on-surface-variant px-xs">
+						{ fmt.Sprintf("%d / %d", page, (total+pageSize-1)/pageSize) }
+					</span>
+					if page*pageSize < total {
+						<a
+							href={ templ.SafeURL(fmt.Sprintf("/clubs/%s/posts?page=%d", club.Id.String(), page+1)) }
+							class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-surface-container text-on-surface hover:bg-surface-container-high no-underline transition-colors"
+						>
+							<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+						</a>
+					} else {
+						<span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-outline opacity-40">
+							<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+						</span>
+					}
+				</div>
+			}
+		}
+	}
+}
+
+func formatPostDate(ts string) string {
+	if t, ok := parseDate(ts); ok {
+		return fmt.Sprintf("%02d %s %d", t.Day(), frMonths[t.Month()-1], t.Year())
+	}
+	if len(ts) >= 10 {
+		return ts[:10]
+	}
+	return ts
+}

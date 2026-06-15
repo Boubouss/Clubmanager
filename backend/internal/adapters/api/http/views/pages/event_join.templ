@@ -1,0 +1,238 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/grpc/dto"
+	"clubmanager/internal/adapters/api/http/views/layout"
+	"clubmanager/internal/domain/events"
+	"clubmanager/internal/domain/members"
+	"strings"
+)
+
+func allowedRoles(eventType string, isCoach bool) []string {
+	switch eventType {
+	case "competition":
+		roles := []string{"competitor", "referee"}
+		if isCoach {
+			roles = append(roles, "coach")
+		}
+		roles = append(roles, "accompanist")
+		return roles
+	case "stage":
+		roles := []string{"competitor"}
+		if isCoach {
+			roles = append(roles, "coach")
+		}
+		roles = append(roles, "accompanist")
+		return roles
+	default:
+		return []string{"accompanist"}
+	}
+}
+
+func memberCatIds(cats []dto.EnrichedEventCategory) string {
+	var ids []string
+	for _, c := range cats {
+		ids = append(ids, c.EventCat.Id.String())
+	}
+	return strings.Join(ids, ",")
+}
+
+func firstCatsForMembers(myMembers []*members.Member, memberMatchingCats map[string][]dto.EnrichedEventCategory) []dto.EnrichedEventCategory {
+	for _, m := range myMembers {
+		if cats := memberMatchingCats[m.Id.String()]; len(cats) > 0 {
+			return cats
+		}
+	}
+	return nil
+}
+
+templ EventJoin(ev *events.Event, myMembers []*members.Member, memberMatchingCats map[string][]dto.EnrichedEventCategory, myParticipations map[string]*events.EventParticipant, isCoach bool, csrfToken string) {
+	@layout.Page(ev.Title, true) {
+		<div class="max-w-xl mx-auto">
+			<a href={ templ.SafeURL("/clubs/" + ev.ClubId.String() + "/events") } class="inline-flex items-center gap-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface mb-lg no-underline">
+				<span class="material-symbols-outlined text-[16px]">arrow_back</span>
+				Retour aux événements
+			</a>
+
+			<!-- Event info -->
+			<div class="bg-surface rounded-xl card-shadow p-lg mb-md">
+				<div class="flex items-center gap-xs mb-xs">
+					<span class={ "font-data-label text-data-label px-sm py-0.5 rounded-full " + eventTypeBadgeClass(ev.Type) }>{ eventTypeLabel(ev.Type) }</span>
+					<span class={ "font-data-label text-data-label px-sm py-0.5 rounded-full " + eventStatusClass(ev.Status) }>{ eventStatusLabel(ev.Status) }</span>
+				</div>
+				<h1 class="font-headline-md text-headline-md text-on-surface mb-xs">{ ev.Title }</h1>
+				<div class="flex flex-col gap-xs font-body-sm text-body-sm text-on-surface-variant">
+					<span class="flex items-center gap-xs">
+						<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+						{ formatEventDate(ev.Date) }
+					</span>
+					<span class="flex items-center gap-xs">
+						<span class="material-symbols-outlined text-[16px]">location_on</span>
+						{ ev.Location }
+					</span>
+				</div>
+			</div>
+
+			<!-- Bouton retour à l'événement si déjà inscrit -->
+			if len(myParticipations) > 0 {
+				<div class="mb-md">
+					<a
+						href={ templ.SafeURL("/events/" + ev.Id.String()) }
+						class="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-3 rounded-lg font-bold font-body-md text-body-md hover:bg-primary-container transition-colors no-underline"
+					>
+						<span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+						Retour à l'événement
+					</a>
+				</div>
+			}
+
+			<!-- Formulaire d'inscription pour les membres non encore inscrits -->
+			if ev.Status != "open" {
+				<div class="bg-surface rounded-xl card-shadow p-lg text-center">
+					<span class="material-symbols-outlined text-[48px] text-outline opacity-40">event_busy</span>
+					<p class="font-body-md text-body-md text-on-surface-variant mt-sm">Les inscriptions ne sont pas ouvertes.</p>
+				</div>
+			} else {
+				<!-- Membres non inscrits -->
+				{{ var unregistered []*members.Member
+				   for _, m := range myMembers {
+				       if _, ok := myParticipations[m.Id.String()]; !ok {
+				           unregistered = append(unregistered, m)
+				       }
+				   }
+				}}
+				if len(unregistered) > 0 {
+					<div class="bg-surface rounded-xl card-shadow p-lg">
+						<h2 class="font-headline-sm text-headline-sm text-on-surface mb-md">S'inscrire</h2>
+						<form method="POST" action={ templ.SafeURL("/events/" + ev.Id.String() + "/join") } class="flex flex-col gap-md">
+							<input type="hidden" name="_csrf" value={ csrfToken }/>
+
+							<!-- Member select -->
+							if len(unregistered) > 1 {
+								<div class="flex flex-col gap-xs">
+									<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Profil membre</label>
+									<select name="member_id" id="member-select" class="px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus">
+										for _, m := range unregistered {
+											{{ hasCats := len(memberMatchingCats[m.Id.String()]) > 0 }}
+											<option
+												value={ m.Id.String() }
+												data-cats={ memberCatIds(memberMatchingCats[m.Id.String()]) }
+												data-has-cats={ func() string { if hasCats { return "true" } else { return "false" } }() }
+											>
+												{ m.Firstname } { m.Lastname }
+												if m.IsPrimary {
+													(principal)
+												}
+											</option>
+										}
+									</select>
+								</div>
+							} else {
+								<input type="hidden" name="member_id" value={ unregistered[0].Id.String() }/>
+								<p class="font-body-sm text-body-sm text-on-surface-variant">
+									Inscription pour : <span class="font-semibold text-on-surface">{ unregistered[0].Firstname } { unregistered[0].Lastname }</span>
+								</p>
+							}
+
+							<!-- Role select -->
+							<div class="flex flex-col gap-xs">
+								<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Rôle</label>
+								<select name="role" id="role-select" class="px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus">
+									for _, r := range allowedRoles(ev.Type, isCoach) {
+										<option value={ r }>{ eventRoleLabel(r) }</option>
+									}
+								</select>
+							</div>
+
+							<!-- Category (competition only) -->
+							if ev.Type == "competition" {
+								{{ initialCats := firstCatsForMembers(unregistered, memberMatchingCats) }}
+								<div id="category-section" class="flex flex-col gap-xs">
+									<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Catégorie de poids</label>
+									if len(initialCats) == 0 {
+										<p class="font-body-sm text-body-sm text-on-surface-variant italic">Aucune catégorie disponible pour votre profil.</p>
+									} else {
+										<select name="event_category_id" id="category-select" class="px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus">
+											for _, ec := range initialCats {
+												if ec.JudoCat != nil {
+													<option value={ ec.EventCat.Id.String() }>
+														{ ec.JudoCat.AgeGroup } · { ec.JudoCat.WeightLabel }
+													</option>
+												}
+											}
+										</select>
+									}
+								</div>
+							}
+
+							<div class="flex justify-end">
+								<button type="submit" class="inline-flex items-center gap-xs bg-primary text-on-primary px-lg py-3 rounded-lg font-bold font-body-md text-body-md hover:bg-primary-container transition-colors cursor-pointer border-none">
+									<span class="material-symbols-outlined text-[20px]">person_add</span>
+									S'inscrire
+								</button>
+							</div>
+						</form>
+					</div>
+				}
+			}
+		</div>
+
+		if ev.Type == "competition" {
+			<script>
+				(function() {
+					var roleSelect = document.getElementById('role-select');
+					var memberSelect = document.getElementById('member-select');
+					var catSection = document.getElementById('category-section');
+					var catSelect = document.getElementById('category-select');
+
+					if (!roleSelect || !catSection) return;
+
+					var allCats = {};
+					if (memberSelect) {
+						Array.from(memberSelect.options).forEach(function(opt) {
+							allCats[opt.value] = opt.dataset.cats ? opt.dataset.cats.split(',').filter(Boolean) : [];
+						});
+					}
+
+					function updateCategoryOptions(memberId) {
+						if (!catSelect) return;
+						var cats = allCats[memberId] || [];
+						Array.from(catSelect.options).forEach(function(opt) {
+							opt.hidden = cats.length > 0 && !cats.includes(opt.value);
+						});
+						var firstVisible = Array.from(catSelect.options).find(function(o) { return !o.hidden; });
+						if (firstVisible) catSelect.value = firstVisible.value;
+					}
+
+					function updateMemberOptions() {
+						if (!memberSelect) return;
+						var isCompetitor = roleSelect.value === 'competitor';
+						Array.from(memberSelect.options).forEach(function(opt) {
+							opt.hidden = isCompetitor && opt.dataset.hasCats !== 'true';
+						});
+						var selected = memberSelect.options[memberSelect.selectedIndex];
+						if (selected && selected.hidden) {
+							var firstVisible = Array.from(memberSelect.options).find(function(o) { return !o.hidden; });
+							if (firstVisible) memberSelect.value = firstVisible.value;
+						}
+					}
+
+					roleSelect.addEventListener('change', function() {
+						var isCompetitor = roleSelect.value === 'competitor';
+						catSection.style.display = isCompetitor ? '' : 'none';
+						updateMemberOptions();
+						if (isCompetitor && memberSelect) updateCategoryOptions(memberSelect.value);
+					});
+
+					if (memberSelect) {
+						memberSelect.addEventListener('change', function() {
+							if (roleSelect.value === 'competitor') updateCategoryOptions(this.value);
+						});
+					}
+
+					updateMemberOptions();
+				})();
+			</script>
+		}
+	}
+}

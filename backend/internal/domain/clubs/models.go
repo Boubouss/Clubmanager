@@ -6,6 +6,12 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	StatusPending   = "pending"
+	StatusActive    = "active"
+	StatusSuspended = "suspended"
+)
+
 type Club struct {
 	Id          uuid.UUID
 	Siren       string
@@ -15,6 +21,8 @@ type Club struct {
 	PostalCode  string
 	Country     string
 	Phonenumber string
+	Status      string
+	CreatorId   uuid.UUID
 }
 
 func NewClub(data map[string]string) (*Club, map[string]string) {
@@ -52,6 +60,7 @@ func NewClub(data map[string]string) (*Club, map[string]string) {
 		PostalCode:  data["postal_code"],
 		Country:     country,
 		Phonenumber: data["phonenumber"],
+		Status:      StatusPending,
 	}, errs
 }
 
@@ -77,8 +86,13 @@ func (c Club) Update(data map[string]string) (*Club, map[string]string) {
 	if _, ok := club["phonenumber"]; !ok {
 		club["phonenumber"] = c.Phonenumber
 	}
-	// siren n'est pas modifiable, on le force depuis le club existant
+	// siren is immutable
 	club["siren"] = c.Siren
 
-	return NewClub(club)
+	updated, errs := NewClub(club)
+	if len(errs) == 0 {
+		updated.Id = c.Id
+		updated.Status = c.Status // status is not changed via Update
+	}
+	return updated, errs
 }

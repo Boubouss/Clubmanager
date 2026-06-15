@@ -1,0 +1,79 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/http/views/layout"
+	"clubmanager/internal/domain/clubs"
+	"clubmanager/internal/domain/members"
+)
+
+templ ClubJoin(club *clubs.Club, userMembers []*members.Member, errors map[string]string, csrfToken string) {
+	@layout.Page("Rejoindre "+club.Name, true) {
+		<div class="max-w-xl mx-auto">
+			<a href={ templ.SafeURL("/clubs/" + club.Id.String() + "/members") } class="inline-flex items-center gap-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface mb-lg no-underline">
+				<span class="material-symbols-outlined text-[16px]">arrow_back</span>
+				Membres de { club.Name }
+			</a>
+			<div class="bg-surface rounded-xl card-shadow p-lg">
+				<h1 class="font-headline-md text-headline-md text-on-surface mb-xs">Demande d'adhésion</h1>
+				<p class="font-body-sm text-body-sm text-on-surface-variant mb-lg">
+					Sélectionnez le profil membre que vous souhaitez inscrire à <strong>{ club.Name }</strong>. Votre demande sera examinée par le staff du club.
+				</p>
+				if len(userMembers) == 0 {
+					<div class="bg-surface-container-low rounded-lg p-lg text-center mb-md">
+						<span class="material-symbols-outlined text-[40px] text-outline opacity-40 block mb-sm">person_off</span>
+						<p class="font-body-md text-body-md text-on-surface-variant mb-md">Vous n'avez pas encore de profil membre.</p>
+						<a href="/members/new" class="inline-flex items-center gap-xs bg-primary text-on-primary px-md py-3 rounded-lg font-bold font-body-md text-body-md hover:bg-primary-container transition-colors no-underline">
+							<span class="material-symbols-outlined text-[18px]">person_add</span>
+							Créer un profil membre
+						</a>
+					</div>
+				} else {
+					<form method="POST" action={ templ.SafeURL("/clubs/" + club.Id.String() + "/join") }>
+						<input type="hidden" name="_csrf" value={ csrfToken }/>
+						<div class="flex flex-col gap-sm mb-lg">
+							for _, m := range userMembers {
+								<label class="flex items-center gap-md p-md bg-surface-container-low rounded-lg border border-outline-variant hover:border-primary cursor-pointer transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary-container/20">
+									<input type="radio" name="member_id" value={ m.Id.String() } class="accent-primary" required/>
+									<div class="flex items-center gap-sm flex-1">
+										<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center flex-shrink-0">
+											<span class="font-bold font-body-md text-body-md text-on-secondary-container">
+												{ string([]rune(m.Firstname)[0:1]) }
+											</span>
+										</div>
+										<div>
+											<p class="font-bold font-body-md text-body-md text-on-surface">{ m.Firstname } { m.Lastname }</p>
+											<p class="font-body-sm text-body-sm text-on-surface-variant">{ formatBirthdate(m.Birthdate) } · { formatGender(m.Gender) }</p>
+										</div>
+										if m.IsPrimary {
+											<span class="ml-auto font-data-label text-data-label bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full">Principal</span>
+										}
+									</div>
+								</label>
+							}
+						</div>
+						if msg, ok := errors["member"]; ok {
+							<p class="font-body-sm text-body-sm text-error mb-sm">{ msg }</p>
+						}
+						if msg, ok := errors["club"]; ok {
+							<p class="font-body-sm text-body-sm text-error mb-sm">{ msg }</p>
+						}
+						<div class="flex gap-sm">
+							<button type="submit" class="bg-primary text-on-primary px-6 py-3 rounded-lg font-bold font-body-md text-body-md hover:bg-primary-container transition-colors cursor-pointer border-none">
+								Envoyer la demande
+							</button>
+							<a href={ templ.SafeURL("/clubs/" + club.Id.String() + "/members") } class="bg-surface-container text-on-surface px-6 py-3 rounded-lg font-bold font-body-md text-body-md hover:bg-surface-container-high transition-colors no-underline border border-outline-variant">
+								Annuler
+							</a>
+						</div>
+					</form>
+					<div class="mt-lg pt-lg border-t border-outline-variant">
+						<p class="font-body-sm text-body-sm text-on-surface-variant">
+							Vous souhaitez créer un nouveau profil ?
+							<a href="/members/new" class="text-primary hover:underline">Créer un profil membre</a>
+						</p>
+					</div>
+				}
+			</div>
+		</div>
+	}
+}

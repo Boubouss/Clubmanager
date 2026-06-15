@@ -16,9 +16,11 @@ CREATE TABLE IF NOT EXISTS clubs (
   name VARCHAR(255) NOT NULL,
   address VARCHAR(255) NOT NULL,
   city VARCHAR(50) NOT NULL,
-  postal_code VARCHAR(5) NOT NULL CHECK (postal_code ~ '^[0-9]{5}$'), 
+  postal_code VARCHAR(5) NOT NULL CHECK (postal_code ~ '^[0-9]{5}$'),
   country VARCHAR(50) NOT NULL DEFAULT 'FRANCE',
   phonenumber VARCHAR(20) CHECK (phonenumber IS NULL OR phonenumber ~ '^\+?[0-9\s\-\(\)]{10,20}$'),
+  status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'suspended')),
+  creator_id UUID REFERENCES users(id),
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
@@ -26,14 +28,23 @@ CREATE TABLE IF NOT EXISTS clubs (
 CREATE TABLE IF NOT EXISTS members (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  club_id UUID REFERENCES clubs(id) ON DELETE CASCADE,
   firstname VARCHAR(50) NOT NULL,
   lastname VARCHAR(50) NOT NULL,
   birthdate DATE NOT NULL CHECK (birthdate <= CURRENT_DATE AND birthdate >= CURRENT_DATE - INTERVAL '120 years'),
   gender VARCHAR(10) NOT NULL CHECK (gender IN ('man', 'woman')),
-  is_valid BOOLEAN NOT NULL DEFAULT false,
+  is_primary BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS club_memberships (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  member_id UUID NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  club_id UUID NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+  is_valid BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  UNIQUE (member_id, club_id)
 );
 
 CREATE TABLE IF NOT EXISTS licences (
@@ -61,7 +72,7 @@ CREATE TABLE IF NOT EXISTS roles (
 CREATE TABLE IF NOT EXISTS judo_categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   age_group VARCHAR(20) NOT NULL,
-  gender VARCHAR(10) NOT NULL CHECK (gender IN ('man', 'woman')),
+  gender VARCHAR(10) NOT NULL CHECK (gender IN ('man', 'woman', 'mixed')),
   age_min INT NOT NULL,
   age_max INT,
   weight_label VARCHAR(10) NOT NULL,
@@ -92,8 +103,8 @@ CREATE TABLE IF NOT EXISTS event_categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   judo_category_id UUID NOT NULL REFERENCES judo_categories(id),
-  weigh_in_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  starts_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  weigh_in_at TIMESTAMP WITH TIME ZONE,
+  starts_at TIMESTAMP WITH TIME ZONE,
   status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'weigh_in', 'in_progress', 'completed')),
   UNIQUE (event_id, judo_category_id)
 );
@@ -124,6 +135,19 @@ CREATE TABLE IF NOT EXISTS carpool_passengers (
   offer_id UUID NOT NULL REFERENCES carpool_offers(id) ON DELETE CASCADE,
   member_id UUID NOT NULL REFERENCES members(id) ON DELETE CASCADE,
   UNIQUE (offer_id, member_id)
+);
+
+CREATE TABLE IF NOT EXISTS posts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  club_id UUID NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+  author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  event_id UUID REFERENCES events(id) ON DELETE SET NULL,
+  title VARCHAR(200) NOT NULL,
+  content TEXT NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
+  visibility VARCHAR(20) NOT NULL DEFAULT 'adherent' CHECK (visibility IN ('public', 'adherent')),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS logs (

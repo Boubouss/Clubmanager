@@ -1,0 +1,56 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/http/views/components"
+	"clubmanager/internal/adapters/api/http/views/layout"
+	"clubmanager/internal/domain/clubs"
+	"clubmanager/internal/domain/members"
+)
+
+templ MemberAdd(club *clubs.Club, linkableMembers []*members.Member, errors map[string]string, csrfToken string) {
+	@layout.Page("Ajouter un membre — "+club.Name, true) {
+		<div class="max-w-xl mx-auto">
+			<a href={ templ.SafeURL("/clubs/" + club.Id.String() + "/members") } class="inline-flex items-center gap-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface mb-lg no-underline">
+				<span class="material-symbols-outlined text-[16px]">arrow_back</span>
+				Retour aux membres
+			</a>
+
+			if len(linkableMembers) > 0 {
+				<div class="bg-surface rounded-xl card-shadow p-lg mb-md">
+					<h2 class="font-headline-sm text-headline-sm text-on-surface mb-xs">Lier un de vos profils</h2>
+					<p class="font-body-sm text-body-sm text-on-surface-variant mb-md">
+						Sélectionnez un profil membre à rattacher à ce club.
+					</p>
+					<div class="flex flex-col gap-sm">
+						for _, m := range linkableMembers {
+							<form method="POST" action={ templ.SafeURL("/clubs/" + club.Id.String() + "/members/add") }>
+								<input type="hidden" name="_csrf" value={ csrfToken }/>
+								<input type="hidden" name="existing_member_id" value={ m.Id.String() }/>
+								<button type="submit" class="w-full flex items-center gap-md p-md bg-surface rounded-lg border border-outline-variant hover:border-primary hover:bg-primary-container/10 transition-colors cursor-pointer text-left">
+									<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center flex-shrink-0">
+										<span class="font-bold font-body-md text-body-md text-on-secondary-container">
+											{ string([]rune(m.Firstname)[0:1]) }
+										</span>
+									</div>
+									<div class="flex-1">
+										<p class="font-bold font-body-md text-body-md text-on-surface">{ m.Firstname } { m.Lastname }</p>
+										<p class="font-body-sm text-body-sm text-on-surface-variant">{ formatBirthdate(m.Birthdate) } · { formatGender(m.Gender) }</p>
+									</div>
+									<span class="material-symbols-outlined text-primary text-[20px]">person_add</span>
+								</button>
+							</form>
+						}
+					</div>
+				</div>
+			}
+
+			<div class="bg-surface rounded-xl card-shadow p-lg">
+				<h2 class="font-headline-sm text-headline-sm text-on-surface mb-xs">Créer un nouveau profil</h2>
+				<p class="font-body-sm text-body-sm text-on-surface-variant mb-md">
+					Le profil sera directement rattaché au club.
+				</p>
+				@components.MemberForm(club.Id.String(), errors, csrfToken)
+			</div>
+		</div>
+	}
+}

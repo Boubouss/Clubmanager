@@ -63,6 +63,9 @@ func (r carpoolRepository) FindOffersByEvent(ctx context.Context, eventId string
 		}
 		list = append(list, o)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return list, nil
 }
 
@@ -123,6 +126,29 @@ func (r carpoolRepository) CountPassengers(ctx context.Context, offerId string) 
 		SELECT COUNT(*) FROM carpool_passengers WHERE offer_id = $1
 	`, offerId).Scan(&count)
 	return count, err
+}
+
+func (r carpoolRepository) FindPassengersByEvent(ctx context.Context, eventId string) ([]*events.CarpoolPassenger, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT cp.id, cp.offer_id, cp.member_id
+		FROM carpool_passengers cp
+		JOIN carpool_offers co ON co.id = cp.offer_id
+		WHERE co.event_id = $1
+	`, eventId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []*events.CarpoolPassenger
+	for rows.Next() {
+		p := &events.CarpoolPassenger{}
+		if err := rows.Scan(&p.Id, &p.OfferId, &p.MemberId); err != nil {
+			return nil, err
+		}
+		list = append(list, p)
+	}
+	return list, rows.Err()
 }
 
 func (r carpoolRepository) IsPassenger(ctx context.Context, eventId, memberId string) (bool, error) {

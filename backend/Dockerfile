@@ -19,7 +19,7 @@ RUN protoc \
     --go-grpc_opt=paths=source_relative \
     internal/adapters/api/grpc/proto/*.proto
 
-RUN go build -o /clubmanager /app/src/cmd/main.go
+RUN go build -o /clubmanager ./cmd/api/
 
 FROM alpine:latest 
 

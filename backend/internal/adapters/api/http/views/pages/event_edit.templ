@@ -1,0 +1,361 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/http/views/layout"
+	"clubmanager/internal/domain/events"
+	"fmt"
+	"strings"
+	"time"
+)
+
+// timestampToDatetimeLocal converts a stored timestamp string to "YYYY-MM-DDTHH:MM"
+// for use in datetime-local inputs. Accepts both RFC3339 and "2006-01-02 15:04:05-07" formats.
+func timestampToDatetimeLocal(s string) string {
+	if s == "" {
+		return ""
+	}
+	formats := []string{
+		time.RFC3339,
+		"2006-01-02 15:04:05-07",
+		"2006-01-02 15:04:05+00",
+		"2006-01-02 15:04:05Z",
+		"2006-01-02",
+	}
+	for _, f := range formats {
+		if t, err := time.Parse(f, s); err == nil {
+			return t.UTC().Format("2006-01-02T15:04")
+		}
+	}
+	if len(s) >= 16 {
+		return strings.ReplaceAll(s[:16], " ", "T")
+	}
+	return s
+}
+
+// timestampToDate extracts only the date part "YYYY-MM-DD" from a stored timestamp.
+func timestampToDate(s string) string {
+	v := timestampToDatetimeLocal(s)
+	if len(v) >= 10 {
+		return v[:10]
+	}
+	return s
+}
+
+// timestampToTime extracts only the "HH:MM" part from a stored timestamp.
+func timestampToTime(s string) string {
+	v := timestampToDatetimeLocal(s)
+	if len(v) >= 16 {
+		return v[11:16]
+	}
+	return ""
+}
+
+// isExistingCategory returns true if judoCategoryId is in the existing event categories.
+func isExistingCategory(judoCatId string, existing []*events.EventCategory) bool {
+	for _, ec := range existing {
+		if ec.JudoCategoryId.String() == judoCatId {
+			return true
+		}
+	}
+	return false
+}
+
+// weighInTimeForCategory returns the "HH:MM" weigh-in time for a given judoCategoryId, if set.
+func weighInTimeForCategory(judoCatId string, existing []*events.EventCategory) string {
+	for _, ec := range existing {
+		if ec.JudoCategoryId.String() == judoCatId {
+			return timestampToTime(ec.WeighInAt)
+		}
+	}
+	return ""
+}
+
+// weighInTimeForGroup returns the "HH:MM" weigh-in time for the first matching category in the group.
+func weighInTimeForGroup(group judoCatGroup, existing []*events.EventCategory) string {
+	for _, cat := range group.Cats {
+		if t := weighInTimeForCategory(cat.Id.String(), existing); t != "" {
+			return t
+		}
+	}
+	return ""
+}
+
+templ EventEdit(ev *events.Event, existingCats []*events.EventCategory, judoCategories []*events.JudoCategory, errors map[string]string, csrfToken string) {
+	@layout.Page("Modifier — "+ev.Title, true) {
+		<div class="max-w-4xl mx-auto">
+			<a href={ templ.SafeURL("/events/" + ev.Id.String()) } class="inline-flex items-center gap-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface mb-lg no-underline">
+				<span class="material-symbols-outlined text-[16px]">arrow_back</span>
+				Retour à l'événement
+			</a>
+
+			<div class="bg-surface rounded-xl card-shadow p-lg">
+				<h1 class="font-headline-md text-headline-md text-on-surface mb-lg">Modifier l'événement</h1>
+
+				<form id="edit-form" method="POST" action={ templ.SafeURL("/events/" + ev.Id.String() + "/edit") } class="flex flex-col gap-md" onsubmit="prepareEditCategories(event)">
+					<input type="hidden" name="_csrf" value={ csrfToken }/>
+					<div id="edit-category-inputs"></div>
+
+					<!-- Titre -->
+					<div class="flex flex-col gap-xs">
+						<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Titre</label>
+						<input
+							type="text" name="title" required value={ ev.Title }
+							class="px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus transition-all"
+						/>
+						if errors["title"] != "" {
+							<p class="font-body-sm text-body-sm text-red-600">{ errors["title"] }</p>
+						}
+					</div>
+
+					<!-- Lieu -->
+					<div class="flex flex-col gap-xs">
+						<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Lieu</label>
+						<input
+							type="text" name="location" required value={ ev.Location }
+							class="px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus transition-all"
+						/>
+						if errors["location"] != "" {
+							<p class="font-body-sm text-body-sm text-red-600">{ errors["location"] }</p>
+						}
+					</div>
+
+					<!-- Description -->
+					<div class="flex flex-col gap-xs">
+						<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Description <span class="font-normal">(optionnel)</span></label>
+						<textarea
+							name="description" rows="3"
+							class="px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus transition-all resize-none"
+						>{ ev.Description }</textarea>
+					</div>
+
+					<!-- Dates -->
+					<div class="grid grid-cols-1 sm:grid-cols-3 gap-md">
+						<div class="flex flex-col gap-xs">
+							<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Ouverture inscriptions</label>
+							<input
+								type="datetime-local" name="registration_open_at" required
+								value={ timestampToDatetimeLocal(ev.RegistrationOpenAt) }
+								class="px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus transition-all"
+							/>
+							if errors["registration_open_at"] != "" {
+								<p class="font-body-sm text-body-sm text-red-600">{ errors["registration_open_at"] }</p>
+							}
+						</div>
+						<div class="flex flex-col gap-xs">
+							<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Clôture inscriptions</label>
+							<input
+								type="datetime-local" name="registration_close_at" required
+								value={ timestampToDatetimeLocal(ev.RegistrationCloseAt) }
+								class="px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus transition-all"
+							/>
+							if errors["registration_close_at"] != "" {
+								<p class="font-body-sm text-body-sm text-red-600">{ errors["registration_close_at"] }</p>
+							}
+						</div>
+						<div class="flex flex-col gap-xs">
+							<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Date de l'événement</label>
+							<input
+								type="date" name="date" required
+								value={ timestampToDate(ev.Date) }
+								class="px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus transition-all"
+							/>
+							if errors["date"] != "" {
+								<p class="font-body-sm text-body-sm text-red-600">{ errors["date"] }</p>
+							}
+						</div>
+					</div>
+
+					<!-- Max participants -->
+					<div class="flex flex-col gap-xs">
+						<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Participants max <span class="font-normal">(0 = illimité)</span></label>
+						<input
+							type="number" name="max_participants" min="0"
+							value={ fmt.Sprintf("%d", ev.MaxParticipants) }
+							class="px-4 py-3 bg-surface border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface input-focus transition-all"
+						/>
+					</div>
+
+					<!-- Catégories judo (compétition seulement) -->
+					if ev.Type == "competition" {
+						<div class="flex flex-col gap-sm">
+							<label class="font-body-sm text-body-sm font-semibold text-on-surface-variant">Catégories</label>
+							<div class="overflow-x-auto rounded-xl border border-outline-variant">
+								<table class="w-full text-left">
+									<thead>
+										<tr class="border-b border-outline-variant bg-surface-container-low">
+											<th class="px-md py-sm font-body-sm text-body-sm font-semibold text-on-surface-variant w-40">Groupe</th>
+											<th class="px-md py-sm font-body-sm text-body-sm font-semibold text-on-surface-variant">Catégories de poids</th>
+											<th class="px-md py-sm font-body-sm text-body-sm font-semibold text-on-surface-variant w-36">Pesée</th>
+										</tr>
+									</thead>
+									<tbody>
+										for i, group := range groupedJudoCats(judoCategories) {
+											<tr class={ "border-b border-outline-variant last:border-0 " + evenRowClass(i) } data-group={ group.Key }>
+												<td class="px-md py-sm">
+													<label class="flex items-center gap-xs cursor-pointer select-none">
+														<input
+															type="checkbox"
+															class="edit-group-checkbox w-4 h-4 accent-primary cursor-pointer"
+															data-group={ group.Key }
+															onchange="editToggleGroup(this)"
+														/>
+														<span class="font-body-sm text-body-sm font-semibold text-on-surface">{ group.DisplayLabel }</span>
+													</label>
+												</td>
+												<td class="px-md py-sm">
+													if len(group.Cats) == 1 && group.Cats[0].Gender == "mixed" {
+														<input
+															type="checkbox"
+															class="edit-cat-checkbox sr-only"
+															value={ group.Cats[0].Id.String() }
+															data-group={ group.Key }
+															onchange="editOnCatChange(this)"
+															if isExistingCategory(group.Cats[0].Id.String(), existingCats) {
+																checked
+															}
+														/>
+														<span class="font-data-label text-data-label text-on-surface-variant italic">Mixte — sans catégorie de poids</span>
+													} else {
+														<div class="flex flex-wrap gap-xs">
+															for _, cat := range group.Cats {
+																<label class="cursor-pointer">
+																	<input
+																		type="checkbox"
+																		class="edit-cat-checkbox sr-only"
+																		value={ cat.Id.String() }
+																		data-group={ group.Key }
+																		onchange="editOnCatChange(this)"
+																		if isExistingCategory(cat.Id.String(), existingCats) {
+																			checked
+																		}
+																	/>
+																	<span class={ "edit-cat-chip inline-flex items-center px-sm py-1 rounded-full border font-data-label text-data-label transition-colors cursor-pointer select-none " + editChipClass(cat.Id.String(), existingCats) }>
+																		{ cat.WeightLabel }
+																	</span>
+																</label>
+															}
+														</div>
+													}
+												</td>
+												<td class="px-md py-sm">
+													<input
+														type="time"
+														class="edit-weigh-in-input w-full px-3 py-2 bg-surface border border-outline-variant rounded-lg font-body-sm text-body-sm text-on-surface input-focus transition-all"
+														data-group={ group.Key }
+														value={ weighInTimeForGroup(group, existingCats) }
+													/>
+												</td>
+											</tr>
+										}
+									</tbody>
+								</table>
+							</div>
+						</div>
+					}
+
+					<!-- Submit -->
+					<div class="flex justify-end gap-xs mt-sm">
+						<a href={ templ.SafeURL("/events/" + ev.Id.String()) } class="inline-flex items-center gap-xs px-lg py-3 bg-surface-container text-on-surface rounded-lg font-bold font-body-md text-body-md hover:bg-surface-container-high transition-colors no-underline">
+							Annuler
+						</a>
+						<button type="submit" class="inline-flex items-center gap-xs bg-primary text-on-primary px-lg py-3 rounded-lg font-bold font-body-md text-body-md hover:bg-primary-container transition-colors cursor-pointer border-none">
+							<span class="material-symbols-outlined text-[20px]">check</span>
+							Enregistrer
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		if ev.Type == "competition" {
+			<script>
+				// Initialize group checkboxes and chip styles on page load
+				document.addEventListener('DOMContentLoaded', function() {
+					document.querySelectorAll('.edit-cat-checkbox').forEach(function(cb) {
+						editUpdateChipStyle(cb);
+					});
+					document.querySelectorAll('.edit-group-checkbox').forEach(function(gcb) {
+						editSyncGroupCheckbox(gcb.dataset.group);
+					});
+				});
+
+				function editToggleGroup(checkbox) {
+					var group = checkbox.dataset.group;
+					var cats = document.querySelectorAll('.edit-cat-checkbox[data-group="' + group + '"]');
+					cats.forEach(function(cb) {
+						cb.checked = checkbox.checked;
+						editUpdateChipStyle(cb);
+					});
+				}
+
+				function editOnCatChange(checkbox) {
+					editUpdateChipStyle(checkbox);
+					editSyncGroupCheckbox(checkbox.dataset.group);
+				}
+
+				function editSyncGroupCheckbox(group) {
+					var all = document.querySelectorAll('.edit-cat-checkbox[data-group="' + group + '"]');
+					var checked = document.querySelectorAll('.edit-cat-checkbox[data-group="' + group + '"]:checked');
+					var groupCb = document.querySelector('.edit-group-checkbox[data-group="' + group + '"]');
+					if (!groupCb) return;
+					if (checked.length === 0) {
+						groupCb.checked = false;
+						groupCb.indeterminate = false;
+					} else if (checked.length === all.length) {
+						groupCb.checked = true;
+						groupCb.indeterminate = false;
+					} else {
+						groupCb.checked = false;
+						groupCb.indeterminate = true;
+					}
+				}
+
+				function editUpdateChipStyle(cb) {
+					var label = cb.closest('label');
+					if (!label) return;
+					var chip = label.querySelector('.edit-cat-chip');
+					if (!chip) return;
+					if (cb.checked) {
+						chip.classList.remove('border-outline-variant', 'text-on-surface-variant', 'bg-surface');
+						chip.classList.add('border-primary', 'text-on-primary', 'bg-primary');
+					} else {
+						chip.classList.remove('border-primary', 'text-on-primary', 'bg-primary');
+						chip.classList.add('border-outline-variant', 'text-on-surface-variant', 'bg-surface');
+					}
+				}
+
+				function prepareEditCategories(e) {
+					var container = document.getElementById('edit-category-inputs');
+					container.innerHTML = '';
+
+					function addHidden(name, value) {
+						var input = document.createElement('input');
+						input.type = 'hidden';
+						input.name = name;
+						input.value = value;
+						container.appendChild(input);
+					}
+
+					// Always send the categories field (even if empty) so the service knows to replace.
+					// We use a sentinel hidden input to signal "categories submitted".
+					addHidden('categories_submitted', '1');
+
+					var selected = document.querySelectorAll('.edit-cat-checkbox:checked');
+					selected.forEach(function(cb) {
+						var group = cb.dataset.group;
+						var weighIn = document.querySelector('.edit-weigh-in-input[data-group="' + group + '"]').value;
+						addHidden('category_judo_id', cb.value);
+						addHidden('category_weigh_in', weighIn);
+					});
+				}
+			</script>
+		}
+	}
+}
+
+func editChipClass(judoCatId string, existing []*events.EventCategory) string {
+	if isExistingCategory(judoCatId, existing) {
+		return "border-primary text-on-primary bg-primary"
+	}
+	return "border-outline-variant text-on-surface-variant bg-surface"
+}

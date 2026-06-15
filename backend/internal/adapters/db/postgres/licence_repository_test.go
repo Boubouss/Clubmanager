@@ -17,8 +17,7 @@ import (
 func setupLicenceFixtures(t *testing.T) (memberId uuid.UUID) {
 	t.Helper()
 	userId := seedUser(t, "user_lic", "user_lic@example.com")
-	clubId := seedClub(t, "111111111", "Licence Club")
-	memberId = seedMember(t, userId, clubId, "Lic", "User")
+	memberId = seedMember(t, userId, "Lic", "User")
 	return
 }
 

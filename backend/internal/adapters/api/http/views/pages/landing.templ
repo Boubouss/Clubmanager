@@ -1,0 +1,73 @@
+package pages
+
+import "clubmanager/internal/adapters/api/http/views/layout"
+
+templ Landing() {
+	@layout.Page("Accueil", false) {
+		<!-- Hero -->
+		<section class="text-center py-xl px-gutter">
+			<h1 class="font-headline-xl text-headline-xl text-primary mb-md max-w-2xl mx-auto">
+				Gérez votre club,<br/>
+				<span class="text-secondary">vivez votre passion.</span>
+			</h1>
+			<p class="font-body-lg text-body-lg text-on-surface-variant max-w-lg mx-auto mb-lg">
+				ClubManager centralise la gestion de vos membres, licences, événements et actualités en un seul endroit.
+			</p>
+			<div class="flex items-center justify-center gap-md flex-wrap">
+				<a href="/user/inscription" class="bg-secondary text-on-secondary px-8 py-4 rounded-lg font-bold font-body-md text-body-md shadow-card-md hover:scale-[1.02] active:scale-95 transition-all no-underline">
+					Créer un compte
+				</a>
+				<a href="/user/connexion" class="bg-white border border-outline-variant text-on-surface px-8 py-4 rounded-lg font-bold font-body-md text-body-md hover:bg-surface-container-low transition-all no-underline">
+					Se connecter
+				</a>
+			</div>
+		</section>
+
+		<!-- Features -->
+		<section class="max-w-4xl mx-auto px-gutter pb-xl">
+			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-md">
+				<div class="bg-white rounded-xl p-md card-shadow card-hover">
+					<div class="text-3xl mb-sm">🏅</div>
+					<h3 class="font-headline-md text-[18px] text-on-surface mb-xs">Membres &amp; licences</h3>
+					<p class="font-body-sm text-body-sm text-on-surface-variant">Gérez profils, adhésions et licences depuis un tableau de bord unique.</p>
+				</div>
+				<div class="bg-white rounded-xl p-md card-shadow card-hover">
+					<div class="text-3xl mb-sm">📅</div>
+					<h3 class="font-headline-md text-[18px] text-on-surface mb-xs">Événements</h3>
+					<p class="font-body-sm text-body-sm text-on-surface-variant">Organisez compétitions et stages, gérez les inscriptions et le covoiturage.</p>
+				</div>
+				<div class="bg-white rounded-xl p-md card-shadow card-hover">
+					<div class="text-3xl mb-sm">📢</div>
+					<h3 class="font-headline-md text-[18px] text-on-surface mb-xs">Actualités</h3>
+					<p class="font-body-sm text-body-sm text-on-surface-variant">Publiez des posts visibles par tous vos adhérents ou réservés aux membres.</p>
+				</div>
+				<div class="bg-white rounded-xl p-md card-shadow card-hover">
+					<div class="text-3xl mb-sm">🔐</div>
+					<h3 class="font-headline-md text-[18px] text-on-surface mb-xs">Rôles &amp; accès</h3>
+					<p class="font-body-sm text-body-sm text-on-surface-variant">Président, staff, coach — attribuez les bonnes permissions aux bonnes personnes.</p>
+				</div>
+			</div>
+		</section>
+
+		<!-- Stats banner -->
+		<section class="max-w-4xl mx-auto px-gutter pb-xl">
+			<div class="bg-primary-container rounded-xl p-lg text-center shadow-card-md">
+				<h2 class="font-headline-md text-headline-md text-white mb-lg">Plus qu'un logiciel, une communauté</h2>
+				<div class="flex flex-wrap justify-center gap-md">
+					<div class="inline-flex flex-col items-center bg-white bg-opacity-10 rounded-xl px-8 py-md">
+						<strong class="font-headline-xl text-headline-xl text-white">500+</strong>
+						<span class="font-body-sm text-body-sm text-primary-fixed opacity-80 mt-xs">clubs actifs</span>
+					</div>
+					<div class="inline-flex flex-col items-center bg-white bg-opacity-10 rounded-xl px-8 py-md">
+						<strong class="font-headline-xl text-headline-xl text-white">12 000+</strong>
+						<span class="font-body-sm text-body-sm text-primary-fixed opacity-80 mt-xs">membres inscrits</span>
+					</div>
+					<div class="inline-flex flex-col items-center bg-white bg-opacity-10 rounded-xl px-8 py-md">
+						<strong class="font-headline-xl text-headline-xl text-white">98%</strong>
+						<span class="font-body-sm text-body-sm text-primary-fixed opacity-80 mt-xs">de satisfaction</span>
+					</div>
+				</div>
+			</div>
+		</section>
+	}
+}

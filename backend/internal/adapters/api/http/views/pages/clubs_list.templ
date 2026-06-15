@@ -1,0 +1,84 @@
+package pages
+
+import (
+	"clubmanager/internal/adapters/api/http/views/layout"
+	"clubmanager/internal/domain/clubs"
+)
+
+templ ClubsList(clubs []*clubs.Club, query string) {
+	@layout.Page("Clubs", true) {
+		<!-- Header -->
+		<div class="flex flex-col md:flex-row md:items-center justify-between gap-md mb-lg">
+			<div class="relative flex-1 max-w-xl">
+				<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
+				<form method="GET" action="/clubs">
+					<input
+						class="w-full pl-12 pr-10 py-3 bg-white border-none rounded-xl shadow-card font-body-md text-body-md placeholder:text-outline focus:ring-2 focus:ring-secondary transition-all"
+						type="text" name="q" placeholder="Rechercher un club par nom ou ville..."
+						value={ query }
+					/>
+				</form>
+				if query != "" {
+					<a href="/clubs" class="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors" title="Annuler la recherche">
+						<span class="material-symbols-outlined text-[20px]">close</span>
+					</a>
+				}
+			</div>
+			<a
+				href="/clubs/create"
+				class="bg-primary text-on-primary px-6 py-3 rounded-lg font-bold font-body-md text-body-md flex items-center justify-center gap-2 shadow-card-md hover:scale-[1.02] active:scale-95 transition-all no-underline"
+			>
+				<span class="material-symbols-outlined">add</span>
+				Créer un club
+			</a>
+		</div>
+
+		if query == "" {
+			<h2 class="font-headline-sm text-headline-sm text-on-surface-variant mb-md">Mes clubs</h2>
+		}
+
+		if len(clubs) == 0 {
+			<!-- Empty state -->
+			<div class="flex flex-col items-center justify-center py-24 gap-md text-center">
+				<div class="w-24 h-24 rounded-full bg-surface-container flex items-center justify-center">
+					<span class="material-symbols-outlined text-[48px] text-outline opacity-60">search_off</span>
+				</div>
+				<div>
+					if query != "" {
+						<h3 class="font-headline-md text-headline-md text-on-surface mb-xs">Aucun club trouvé</h3>
+						<p class="font-body-sm text-body-sm text-on-surface-variant max-w-xs">Essayez une autre recherche.</p>
+					} else {
+						<h3 class="font-headline-md text-headline-md text-on-surface mb-xs">Vous n'êtes dans aucun club</h3>
+						<p class="font-body-sm text-body-sm text-on-surface-variant max-w-xs">Recherchez un club ou créez le vôtre.</p>
+					}
+				</div>
+			</div>
+		} else {
+			<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-md">
+				for _, cl := range clubs {
+					<a href={ templ.SafeURL("/clubs/" + cl.Id.String()) } class="club-card bg-white rounded-xl p-md card-shadow border border-transparent flex flex-col gap-md no-underline">
+						<div class="h-36 w-full rounded-lg overflow-hidden bg-surface-container flex items-center justify-center">
+							<span class="material-symbols-outlined text-[64px] text-outline opacity-30">sports_martial_arts</span>
+						</div>
+						<div class="flex justify-between items-start">
+							<div>
+								<h2 class="font-headline-md text-[20px] text-primary">{ cl.Name }</h2>
+								<div class="flex items-center gap-1 text-on-surface-variant font-body-sm text-body-sm mt-1">
+									<span class="material-symbols-outlined text-[16px]">location_on</span>
+									{ cl.City }
+								</div>
+							</div>
+							<span class={ "badge-" + cl.Status }>{ cl.Status }</span>
+						</div>
+						<div class="pt-4 border-t border-outline-variant flex justify-between items-center">
+							<span class="font-body-sm text-body-sm text-outline">SIREN { cl.Siren }</span>
+							<span class="text-secondary font-bold font-body-sm text-body-sm flex items-center gap-1">
+								Voir <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+							</span>
+						</div>
+					</a>
+				}
+			</div>
+		}
+	}
+}

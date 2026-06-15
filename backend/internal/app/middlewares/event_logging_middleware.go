@@ -3,6 +3,7 @@ package middlewares
 import (
 	"clubmanager/internal/adapters/api/grpc/dto"
 	"clubmanager/internal/app/services"
+	events "clubmanager/internal/domain/events"
 	"context"
 	"fmt"
 	"time"
@@ -30,11 +31,11 @@ func (s *eventLoggingService) GetEvent(ctx context.Context, id string) (res *dto
 	return s.next.GetEvent(ctx, id)
 }
 
-func (s *eventLoggingService) ListClubEvents(ctx context.Context, clubId string) (res *dto.ListClubEventsResponse, err error) {
+func (s *eventLoggingService) ListClubEvents(ctx context.Context, req *dto.ListClubEventsRequest) (res *dto.ListClubEventsResponse, err error) {
 	defer func(begin time.Time) {
 		fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "ListClubEvents", time.Since(begin), err)
 	}(time.Now())
-	return s.next.ListClubEvents(ctx, clubId)
+	return s.next.ListClubEvents(ctx, req)
 }
 
 func (s *eventLoggingService) UpdateEvent(ctx context.Context, data *dto.UpdateEventRequest) (res *dto.UpdateEventResponse, err error) {
@@ -49,6 +50,20 @@ func (s *eventLoggingService) CancelEvent(ctx context.Context, id string) (ok bo
 		fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "CancelEvent", time.Since(begin), err)
 	}(time.Now())
 	return s.next.CancelEvent(ctx, id)
+}
+
+func (s *eventLoggingService) ReopenEvent(ctx context.Context, id string) (ok bool, err error) {
+	defer func(begin time.Time) {
+		fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "ReopenEvent", time.Since(begin), err)
+	}(time.Now())
+	return s.next.ReopenEvent(ctx, id)
+}
+
+func (s *eventLoggingService) DeleteEvent(ctx context.Context, id string) (ok bool, err error) {
+	defer func(begin time.Time) {
+		fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "DeleteEvent", time.Since(begin), err)
+	}(time.Now())
+	return s.next.DeleteEvent(ctx, id)
 }
 
 func (s *eventLoggingService) OpenEvent(ctx context.Context, id string) (ok bool, err error) {
@@ -112,6 +127,13 @@ func (s *eventLoggingService) LeaveCarpoolOffer(ctx context.Context, offerId, me
 		fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "LeaveCarpoolOffer", time.Since(begin), err)
 	}(time.Now())
 	return s.next.LeaveCarpoolOffer(ctx, offerId, memberId)
+}
+
+func (s *eventLoggingService) GetEventCarpoolPassengers(ctx context.Context, eventId string) (res []*events.CarpoolPassenger, err error) {
+	defer func(begin time.Time) {
+		fmt.Printf("=> type: '%s'; took: '%v'; err: '%v'.\n", "GetEventCarpoolPassengers", time.Since(begin), err)
+	}(time.Now())
+	return s.next.GetEventCarpoolPassengers(ctx, eventId)
 }
 
 func (s *eventLoggingService) GetEventCarpools(ctx context.Context, eventId string) (res *dto.GetEventCarpoolsResponse, err error) {

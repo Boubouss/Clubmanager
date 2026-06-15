@@ -54,13 +54,12 @@ func TestNewMember(t *testing.T) {
 
 	for i, tt := range tests {
 		userId := validUserId
-		clubId := validClubId
 		// last test uses invalid userId
 		if i == len(tests)-1 {
 			userId = "not-a-uuid"
 		}
 		t.Run(tt.name, func(t *testing.T) {
-			_, errs := NewMember(userId, clubId, tt.data)
+			_, errs := NewMember(userId, tt.data, false)
 			if tt.wantErr {
 				assert.True(t, len(errs) > 0)
 			} else {
@@ -70,12 +69,30 @@ func TestNewMember(t *testing.T) {
 	}
 }
 
+func TestNewMember_IsPrimary(t *testing.T) {
+	data := map[string]string{
+		"firstname": "Jean", "lastname": "Dupont",
+		"birthdate": "1990-06-15", "gender": "man",
+	}
+
+	m, errs := NewMember(validUserId, data, true)
+	assert.Empty(t, errs)
+	assert.True(t, m.IsPrimary)
+
+	m2, errs2 := NewMember(validUserId, data, false)
+	assert.Empty(t, errs2)
+	assert.False(t, m2.IsPrimary)
+}
+
 func TestMemberUpdate(t *testing.T) {
 	base := Member{
-		Id: uuid.New(), UserId: uuid.MustParse(validUserId),
-		ClubId: uuid.MustParse(validClubId),
-		Firstname: "Jean", Lastname: "Dupont",
-		Birthdate: "1990-06-15", Gender: "man", IsValid: true,
+		Id:        uuid.New(),
+		UserId:    uuid.MustParse(validUserId),
+		Firstname: "Jean",
+		Lastname:  "Dupont",
+		Birthdate: "1990-06-15",
+		Gender:    "man",
+		IsPrimary: true,
 	}
 
 	t.Run("Partial update keeps existing values", func(t *testing.T) {
@@ -83,11 +100,33 @@ func TestMemberUpdate(t *testing.T) {
 		assert.Empty(t, errs)
 		assert.Equal(t, "Paul", updated.Firstname)
 		assert.Equal(t, base.Lastname, updated.Lastname)
-		assert.Equal(t, base.IsValid, updated.IsValid)
+		assert.Equal(t, base.IsPrimary, updated.IsPrimary)
 	})
 
 	t.Run("Invalid gender in update", func(t *testing.T) {
 		_, errs := base.Update(map[string]string{"gender": "alien"})
+		assert.True(t, len(errs) > 0)
+	})
+}
+
+func TestNewClubMembership(t *testing.T) {
+	memberId := uuid.New().String()
+
+	t.Run("Valid membership", func(t *testing.T) {
+		cm, errs := NewClubMembership(memberId, validClubId)
+		assert.Empty(t, errs)
+		assert.NotNil(t, cm)
+		assert.False(t, cm.IsValid)
+		assert.Equal(t, validClubId, cm.ClubId.String())
+	})
+
+	t.Run("Invalid member ID", func(t *testing.T) {
+		_, errs := NewClubMembership("not-a-uuid", validClubId)
+		assert.True(t, len(errs) > 0)
+	})
+
+	t.Run("Invalid club ID", func(t *testing.T) {
+		_, errs := NewClubMembership(memberId, "not-a-uuid")
 		assert.True(t, len(errs) > 0)
 	})
 }
