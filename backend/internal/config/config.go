@@ -13,6 +13,7 @@ type Config struct {
 	JWTSecret    string
 	JWTTTLDays   int
 	DBMaxRetries int
+	AppEnv       string
 }
 
 func Load() (*Config, error) {
@@ -61,5 +62,6 @@ func Load() (*Config, error) {
 		JWTSecret:    jwtSecret,
 		JWTTTLDays:   jwtTTLDays,
 		DBMaxRetries: dbMaxRetries,
+		AppEnv:       os.Getenv("APP_ENV"),
 	}, nil
 }

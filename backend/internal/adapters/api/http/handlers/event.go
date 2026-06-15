@@ -657,14 +657,16 @@ func (h *EventHandler) HandleOpenEvent(c *echo.Context) error {
 			visibility = "adherent"
 		}
 		content := buildEventOpenContent(ev)
-		h.postSvc.CreatePost(ctx, &dto.CreatePostRequest{
+		if _, postErr := h.postSvc.CreatePost(ctx, &dto.CreatePostRequest{
 			ClubId:     ev.ClubId.String(),
 			EventId:    eventId,
 			Title:      ev.Title + " — Inscriptions ouvertes",
 			Content:    content,
 			Visibility: visibility,
 			Status:     "published",
-		})
+		}); postErr != nil {
+			fmt.Printf("[WARN] HandleOpenEvent: failed to create announcement post for event %s: %v\n", eventId, postErr)
+		}
 	}
 
 	return c.Redirect(http.StatusSeeOther, "/events/"+eventId)
@@ -954,6 +956,7 @@ func (h *EventHandler) HandleRemoveParticipant(c *echo.Context) error {
 	if _, err := h.eventSvc.UnregisterParticipant(ctx, &dto.UnregisterParticipantRequest{
 		EventId:  eventId,
 		MemberId: memberId,
+		Force:    true,
 	}); err != nil {
 		return err
 	}
@@ -1206,6 +1209,10 @@ func (h *EventHandler) HandleLeaveCarpoolOffer(c *echo.Context) error {
 	userId, _ := c.Get("userId").(string)
 	eventId := c.FormValue("event_id")
 
+	if eventId == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "event_id manquant.")
+	}
+
 	// Find user's registered member for this event
 	participantsResp, err := h.eventSvc.GetParticipants(c.Request().Context(), eventId)
 	if err != nil {
@@ -1235,6 +1242,10 @@ func (h *EventHandler) HandleCancelCarpoolOffer(c *echo.Context) error {
 	offerId := c.Param("offerId")
 	userId, _ := c.Get("userId").(string)
 	eventId := c.FormValue("event_id")
+
+	if eventId == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "event_id manquant.")
+	}
 
 	ctx := context.WithValue(c.Request().Context(), "user_id", userId)
 	if _, err := h.eventSvc.CancelCarpoolOffer(ctx, offerId); err != nil {

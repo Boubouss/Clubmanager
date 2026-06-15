@@ -166,5 +166,12 @@ func (h *ClubHandler) HandleClubDetail(c *echo.Context) error {
 		return err
 	}
 
-	return render(c, pages.ClubDetail(clubResp.Club, postResp.Posts))
+	eventsResp, err := h.eventSvc.ListClubEvents(c.Request().Context(), &dto.ListClubEventsRequest{
+		ClubId: id, Page: 1, PageSize: 5,
+	})
+	if err != nil {
+		return err
+	}
+
+	return render(c, pages.ClubDetail(clubResp.Club, eventsResp.Events, postResp.Posts))
 }

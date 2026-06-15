@@ -86,15 +86,16 @@ func (m mockParticipantRepo) CountByEvent(ctx context.Context, eventId string) (
 }
 
 type mockCarpoolRepo struct {
-	createOfferFunc     func(context.Context, *events.CarpoolOffer) (*events.CarpoolOffer, error)
-	findOfferByIdFunc   func(context.Context, string) (*events.CarpoolOffer, error)
-	findOffersByEventFunc func(context.Context, string) ([]*events.CarpoolOffer, error)
-	findOfferByMemberFunc func(context.Context, string, string) (*events.CarpoolOffer, error)
-	deleteOfferFunc     func(context.Context, string) (bool, error)
-	addPassengerFunc    func(context.Context, string, string) (bool, error)
-	removePassengerFunc func(context.Context, string, string) (bool, error)
-	countPassengersFunc func(context.Context, string) (int, error)
-	isPassengerFunc     func(context.Context, string, string) (bool, error)
+	createOfferFunc          func(context.Context, *events.CarpoolOffer) (*events.CarpoolOffer, error)
+	findOfferByIdFunc        func(context.Context, string) (*events.CarpoolOffer, error)
+	findOffersByEventFunc    func(context.Context, string) ([]*events.CarpoolOffer, error)
+	findOfferByMemberFunc    func(context.Context, string, string) (*events.CarpoolOffer, error)
+	deleteOfferFunc          func(context.Context, string) (bool, error)
+	addPassengerFunc         func(context.Context, string, string) (bool, error)
+	removePassengerFunc      func(context.Context, string, string) (bool, error)
+	countPassengersFunc      func(context.Context, string) (int, error)
+	isPassengerFunc          func(context.Context, string, string) (bool, error)
+	findPassengersByEventFunc func(context.Context, string) ([]*events.CarpoolPassenger, error)
 }
 
 func (m mockCarpoolRepo) CreateOffer(ctx context.Context, o *events.CarpoolOffer) (*events.CarpoolOffer, error) {
@@ -123,6 +124,12 @@ func (m mockCarpoolRepo) CountPassengers(ctx context.Context, offerId string) (i
 }
 func (m mockCarpoolRepo) IsPassenger(ctx context.Context, eventId, memberId string) (bool, error) {
 	return m.isPassengerFunc(ctx, eventId, memberId)
+}
+func (m mockCarpoolRepo) FindPassengersByEvent(ctx context.Context, eventId string) ([]*events.CarpoolPassenger, error) {
+	if m.findPassengersByEventFunc != nil {
+		return m.findPassengersByEventFunc(ctx, eventId)
+	}
+	return nil, nil
 }
 
 type mockJudoCatRepo struct {
@@ -794,6 +801,75 @@ func TestUnregisterParticipant(t *testing.T) {
 			assert.Equal(t, tt.wantOk, ok)
 		})
 	}
+}
+
+// ── UnregisterParticipant (Force / Manager) ───────────────────────────────────
+
+func TestUnregisterParticipantForce(t *testing.T) {
+	// An event whose registration period is closed
+	closedEvent := &events.Event{
+		Id:                  eventUUID,
+		ClubId:              eventClubId,
+		CreatedBy:           eventCreator,
+		Status:              events.StatusOpen,
+		Type:                events.TypeCompetition,
+		RegistrationOpenAt:  "2025-01-01T00:00:00Z",
+		RegistrationCloseAt: "2025-06-01T00:00:00Z",
+		Date:                "2025-07-01T09:00:00Z",
+	}
+
+	t.Run("Manager removes participant after period close (Force=true)", func(t *testing.T) {
+		mRepo := mockMemberRepository{
+			findFunc: func(_ context.Context, _ string) (*members.Member, error) {
+				return eventMember, nil
+			},
+		}
+		eRepo := mockEventRepo{
+			findFunc: func(_ context.Context, _ string) (*events.Event, error) {
+				return closedEvent, nil
+			},
+		}
+		pRepo := mockParticipantRepo{
+			unregisterFunc: func(_ context.Context, _, _ string) (bool, error) {
+				return true, nil
+			},
+		}
+
+		svc := defaultEventSvc(eRepo, noopCategory(), pRepo, noopCarpool(), noopJudo(),
+			mRepo, mockLicenceRepository{}, noopRoleChecker())
+		ok, err := svc.UnregisterParticipant(ctxWithUser(eventCreator.String()), &dto.UnregisterParticipantRequest{
+			EventId: eventUUID.String(), MemberId: memberUUID.String(), Force: true,
+		})
+
+		assert.NoError(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("Member cannot unregister after period close (Force=false)", func(t *testing.T) {
+		mRepo := mockMemberRepository{
+			findFunc: func(_ context.Context, _ string) (*members.Member, error) {
+				return eventMember, nil
+			},
+		}
+		eRepo := mockEventRepo{
+			findFunc: func(_ context.Context, _ string) (*events.Event, error) {
+				return closedEvent, nil
+			},
+		}
+		pRepo := mockParticipantRepo{
+			unregisterFunc: func(_ context.Context, _, _ string) (bool, error) {
+				return false, nil
+			},
+		}
+
+		svc := defaultEventSvc(eRepo, noopCategory(), pRepo, noopCarpool(), noopJudo(),
+			mRepo, mockLicenceRepository{}, noopRoleChecker())
+		_, err := svc.UnregisterParticipant(ctxWithUser(eventCreator.String()), &dto.UnregisterParticipantRequest{
+			EventId: eventUUID.String(), MemberId: memberUUID.String(), Force: false,
+		})
+
+		assert.Error(t, err)
+	})
 }
 
 // ── CreateCarpoolOffer ───────────────────────────────────────────────────────

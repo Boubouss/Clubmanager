@@ -7,6 +7,7 @@ import (
 	memberDomain "clubmanager/internal/domain/members"
 	"clubmanager/internal/domain/roles"
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -352,11 +353,13 @@ func (h *MemberHandler) HandleMemberAdd(c *echo.Context) error {
 					hasRole, _ := h.roleChecker.HasRole(c.Request().Context(), targetUserId, clubId, "president", "staff", "coach", "associate")
 					if !hasRole {
 						ctx := context.WithValue(c.Request().Context(), "user_id", userId)
-						h.roleSvc.AssignRole(ctx, &dto.AssignRoleRequest{
+						if _, roleErr := h.roleSvc.AssignRole(ctx, &dto.AssignRoleRequest{
 							UserId: targetUserId,
 							ClubId: clubId,
 							Role:   "associate",
-						})
+						}); roleErr != nil {
+							fmt.Printf("[WARN] HandleMemberAdd: failed to assign associate role to user %s in club %s: %v\n", targetUserId, clubId, roleErr)
+						}
 					}
 					break
 				}
@@ -405,11 +408,13 @@ func (h *MemberHandler) HandleMemberAdd(c *echo.Context) error {
 	}
 	if !hasRole {
 		ctx := context.WithValue(c.Request().Context(), "user_id", userId)
-		h.roleSvc.AssignRole(ctx, &dto.AssignRoleRequest{
+		if _, roleErr := h.roleSvc.AssignRole(ctx, &dto.AssignRoleRequest{
 			UserId: targetUserId,
 			ClubId: clubId,
 			Role:   "associate",
-		})
+		}); roleErr != nil {
+			fmt.Printf("[WARN] HandleMemberAdd: failed to assign associate role to user %s in club %s: %v\n", targetUserId, clubId, roleErr)
+		}
 	}
 
 	return c.Redirect(http.StatusSeeOther, "/clubs/"+clubId+"/members")
@@ -444,11 +449,13 @@ func (h *MemberHandler) HandleValidateMember(c *echo.Context) error {
 	}
 	if !hasRole {
 		ctx := context.WithValue(c.Request().Context(), "user_id", userId)
-		h.roleSvc.AssignRole(ctx, &dto.AssignRoleRequest{
+		if _, roleErr := h.roleSvc.AssignRole(ctx, &dto.AssignRoleRequest{
 			UserId: targetUserId,
 			ClubId: clubId,
 			Role:   "associate",
-		})
+		}); roleErr != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Validation impossible : attribution du rôle échouée.")
+		}
 	}
 
 	return c.Redirect(http.StatusSeeOther, "/clubs/"+clubId+"/members")
@@ -459,11 +466,11 @@ func (h *MemberHandler) HandleRefuseMember(c *echo.Context) error {
 	membershipId := c.Param("membershipId")
 	userId, _ := c.Get("userId").(string)
 
-	isPresident, err := h.roleChecker.HasRole(c.Request().Context(), userId, clubId, "president")
+	canManage, err := h.roleChecker.HasRole(c.Request().Context(), userId, clubId, "president", "staff")
 	if err != nil {
 		return err
 	}
-	if !isPresident {
+	if !canManage {
 		return echo.NewHTTPError(http.StatusForbidden, "Accès refusé.")
 	}
 
@@ -479,11 +486,11 @@ func (h *MemberHandler) HandleRemoveMember(c *echo.Context) error {
 	membershipId := c.Param("membershipId")
 	userId, _ := c.Get("userId").(string)
 
-	isPresident, err := h.roleChecker.HasRole(c.Request().Context(), userId, clubId, "president")
+	canManage, err := h.roleChecker.HasRole(c.Request().Context(), userId, clubId, "president", "staff")
 	if err != nil {
 		return err
 	}
-	if !isPresident {
+	if !canManage {
 		return echo.NewHTTPError(http.StatusForbidden, "Accès refusé.")
 	}
 
@@ -508,7 +515,9 @@ func (h *MemberHandler) HandleAssignRole(c *echo.Context) error {
 	}
 	for _, r := range existingRoles.Roles {
 		if r.UserId.String() == targetUserId {
-			h.roleSvc.RemoveRole(ctx, &dto.RemoveRoleRequest{Id: r.Id.String()})
+			if _, roleErr := h.roleSvc.RemoveRole(ctx, &dto.RemoveRoleRequest{Id: r.Id.String()}); roleErr != nil {
+				fmt.Printf("[WARN] HandleAssignRole: failed to remove existing role %s for user %s in club %s: %v\n", r.Role, targetUserId, clubId, roleErr)
+			}
 			break
 		}
 	}
@@ -558,7 +567,7 @@ func (h *MemberHandler) renderMembersFragment(c *echo.Context, clubId, userId st
 	}
 
 	membersResp, err := h.memberSvc.GetMembersByClub(c.Request().Context(), &dto.GetMembersByClubRequest{
-		ClubId: clubId, Page: 1, PageSize: 100,
+		ClubId: clubId, Page: 1, PageSize: 500,
 	})
 	if err != nil {
 		return err

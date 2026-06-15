@@ -118,6 +118,8 @@ type RegisterParticipantResponse struct {
 type UnregisterParticipantRequest struct {
 	EventId  string
 	MemberId string
+	// Force bypasses the registration period check — used by managers.
+	Force bool
 }
 
 type GetParticipantsRequest struct {

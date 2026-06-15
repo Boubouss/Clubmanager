@@ -14,10 +14,11 @@ const cookieName = "ClubManagerAuth"
 
 type UserHandler struct {
 	userSvc services.UserService
+	isProd  bool
 }
 
-func NewUserHandler(userSvc services.UserService) *UserHandler {
-	return &UserHandler{userSvc: userSvc}
+func NewUserHandler(userSvc services.UserService, isProd bool) *UserHandler {
+	return &UserHandler{userSvc: userSvc, isProd: isProd}
 }
 
 func (h *UserHandler) HandleLoginPage(c *echo.Context) error {
@@ -39,7 +40,7 @@ func (h *UserHandler) HandleLoginUser(c *echo.Context) error {
 		return render(c, pages.Connexion(resp.Errors, csrf(c)))
 	}
 
-	setAuthCookie(c, resp.Token)
+	h.setAuthCookie(c, resp.Token)
 	return c.Redirect(http.StatusSeeOther, "/home")
 }
 
@@ -64,7 +65,7 @@ func (h *UserHandler) HandleRegisterUser(c *echo.Context) error {
 		return render(c, pages.Inscription(resp.Errors, csrf(c)))
 	}
 
-	setAuthCookie(c, resp.Token)
+	h.setAuthCookie(c, resp.Token)
 	return c.Redirect(http.StatusSeeOther, "/home")
 }
 
@@ -80,13 +81,17 @@ func (h *UserHandler) HandleLogout(c *echo.Context) error {
 	return c.Redirect(http.StatusSeeOther, "/")
 }
 
-func setAuthCookie(c *echo.Context, token string) {
+func (h *UserHandler) setAuthCookie(c *echo.Context, token string) {
 	cookie := new(http.Cookie)
 	cookie.Name = cookieName
 	cookie.Value = token
 	cookie.Expires = time.Now().Add(30 * 24 * time.Hour)
 	cookie.Path = "/"
 	cookie.HttpOnly = true
+	cookie.SameSite = http.SameSiteLaxMode
+	if h.isProd {
+		cookie.Secure = true
+	}
 	c.SetCookie(cookie)
 }
 

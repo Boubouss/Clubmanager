@@ -619,13 +619,15 @@ func (s *eventService) UnregisterParticipant(ctx context.Context, data *dto.Unre
 		return false, fmt.Errorf("event not found")
 	}
 
-	now := time.Now()
-	tClose, err := parseTimestamp(event.RegistrationCloseAt)
-	if err != nil {
-		return false, fmt.Errorf("invalid event registration_close_at format: %w", err)
-	}
-	if now.After(tClose) {
-		return false, fmt.Errorf("registration period is closed, cannot unregister")
+	if !data.Force {
+		now := time.Now()
+		tClose, err := parseTimestamp(event.RegistrationCloseAt)
+		if err != nil {
+			return false, fmt.Errorf("invalid event registration_close_at format: %w", err)
+		}
+		if now.After(tClose) {
+			return false, fmt.Errorf("registration period is closed, cannot unregister")
+		}
 	}
 
 	return s.participantRepo.Unregister(ctx, data.EventId, data.MemberId)

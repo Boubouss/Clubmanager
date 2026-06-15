@@ -3,12 +3,13 @@ package pages
 import (
 	"clubmanager/internal/adapters/api/http/views/layout"
 	"clubmanager/internal/domain/clubs"
+	"clubmanager/internal/domain/events"
 	"clubmanager/internal/domain/posts"
 	"fmt"
 	"github.com/google/uuid"
 )
 
-templ ClubDetail(club *clubs.Club, recentPosts []*posts.Post) {
+templ ClubDetail(club *clubs.Club, upcomingEvents []*events.Event, recentPosts []*posts.Post) {
 	@layout.Page(club.Name, true) {
 		<!-- Club hero -->
 		<div class="bg-surface rounded-xl p-lg card-shadow mb-lg relative overflow-hidden">
@@ -62,33 +63,54 @@ templ ClubDetail(club *clubs.Club, recentPosts []*posts.Post) {
 			</a>
 		</div>
 
-		<!-- Fil d'actualités -->
+		<!-- Fil d'activité unifié -->
 		<div class="flex flex-col gap-sm">
-			if len(recentPosts) == 0 {
+			if len(upcomingEvents) == 0 && len(recentPosts) == 0 {
 				<div class="bg-surface rounded-xl card-shadow p-xl text-center">
 					<span class="material-symbols-outlined text-[48px] text-outline opacity-40">dynamic_feed</span>
-					<p class="font-body-md text-body-md text-on-surface-variant mt-sm">Aucune actualité pour ce club.</p>
+					<p class="font-body-md text-body-md text-on-surface-variant mt-sm">Aucune activité pour ce club.</p>
 				</div>
 			}
 
-			for _, p := range recentPosts {
-				<a href={ templ.SafeURL(postCardURL(p)) } class="bg-surface rounded-xl card-shadow card-hover transition-all flex gap-md items-center p-md no-underline group">
-					<div class={ "flex flex-col items-center justify-center px-md py-sm rounded-lg min-w-[60px] " + postCardDateBg(p) }>
-						<span class="font-data-label text-data-label text-on-tertiary-container uppercase tracking-wider">{ postDateMonth(postEffectiveTs(p)) }</span>
-						<span class="font-headline-md text-headline-md leading-none text-on-tertiary-container">{ postDateDay(postEffectiveTs(p)) }</span>
+			for _, ev := range upcomingEvents {
+				<a href={ templ.SafeURL("/events/" + ev.Id.String()) } class="bg-surface rounded-xl card-shadow card-hover transition-all flex gap-md items-center p-md no-underline group">
+					<div class="flex flex-col items-center justify-center bg-tertiary-container px-md py-sm rounded-lg min-w-[60px]">
+						<span class="font-data-label text-data-label text-on-tertiary-container uppercase tracking-wider">{ ev.Date[5:7] }</span>
+						<span class="font-headline-md text-headline-md leading-none text-on-tertiary-container">{ ev.Date[8:10] }</span>
 					</div>
 					<div class="flex-grow min-w-0">
 						<div class="flex items-center gap-xs mb-xs">
 							<span class="inline-flex items-center gap-xs font-data-label text-data-label text-outline uppercase tracking-wider">
-								<span class="material-symbols-outlined text-[14px]">{ postCardIcon(p) }</span>
-								{ postCardLabel(p) }
+								<span class="material-symbols-outlined text-[14px]">event</span>
+								Événement
 							</span>
 						</div>
-						<h4 class="font-bold font-body-lg text-body-lg text-primary truncate">{ p.Title }</h4>
-						<p class="font-body-sm text-body-sm text-on-surface-variant">{ formatPostDate(postEffectiveTs(p)) }</p>
+						<h4 class="font-bold font-body-lg text-body-lg text-primary truncate">{ ev.Title }</h4>
+						<p class="font-body-sm text-body-sm text-on-surface-variant">{ ev.Date } · { ev.Location }</p>
 					</div>
 					<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors flex-shrink-0">chevron_right</span>
 				</a>
+			}
+
+			for _, p := range recentPosts {
+				<article class="bg-surface rounded-xl card-shadow card-hover transition-all p-md">
+					<div class="flex items-start justify-between gap-sm">
+						<div class="flex-grow min-w-0">
+							<div class="flex items-center gap-xs mb-xs">
+								<span class="inline-flex items-center gap-xs font-data-label text-data-label text-outline uppercase tracking-wider">
+									<span class="material-symbols-outlined text-[14px]">newspaper</span>
+									Actualité
+								</span>
+								<span class={ "badge-" + p.Status }>{ p.Status }</span>
+							</div>
+							<h4 class="font-bold font-body-lg text-body-lg text-primary mb-sm">{ p.Title }</h4>
+							<a href={ templ.SafeURL("/posts/" + p.Id.String()) } class="text-secondary font-bold font-body-sm text-body-sm inline-flex items-center gap-xs no-underline hover:underline">
+								Lire la suite
+								<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+							</a>
+						</div>
+					</div>
+				</article>
 			}
 		</div>
 	}

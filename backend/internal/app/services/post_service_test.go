@@ -86,18 +86,22 @@ func newTestPostService(
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 func TestCreatePost(t *testing.T) {
-	isManagerChecker := mockRoleCheckerForClub{
+	// Make HasRole return true (manager check) — used to simulate coach role.
+	coachChecker := mockRoleCheckerForClub{
 		isSuperAdminFunc: func(_ context.Context, _ string) (bool, error) { return false, nil },
+		hasRoleFunc:      func(_ context.Context, _, _ string, _ ...string) (bool, error) { return true, nil },
 	}
-	// Make HasRole return true (manager check).
-	// We can't override HasRole in the mock easily — use superadmin path instead for simplicity.
 	superAdminChecker := mockRoleCheckerForClub{
 		isSuperAdminFunc: func(_ context.Context, _ string) (bool, error) { return true, nil },
 	}
 	notManagerChecker := mockRoleCheckerForClub{
 		isSuperAdminFunc: func(_ context.Context, _ string) (bool, error) { return false, nil },
 	}
-	_ = isManagerChecker
+	associateChecker := mockRoleCheckerForClub{
+		isSuperAdminFunc: func(_ context.Context, _ string) (bool, error) { return false, nil },
+		hasRoleFunc:      func(_ context.Context, _, _ string, _ ...string) (bool, error) { return false, nil },
+	}
+	_ = associateChecker
 
 	noopMemberChecker := mockMembershipChecker{
 		hasMembershipFunc: func(_ context.Context, _, _ string) (bool, error) { return false, nil },
@@ -138,6 +142,24 @@ func TestCreatePost(t *testing.T) {
 				ClubId: postClubId.String(), Title: "Actu", Content: "Corps",
 			},
 			checker:    notManagerChecker,
+			wantErrors: true,
+		},
+		{
+			name: "Coach creates post successfully",
+			ctx:  authorCtx(),
+			req: &dto.CreatePostRequest{
+				ClubId: postClubId.String(), Title: "Actu coach", Content: "Corps",
+			},
+			checker:    coachChecker,
+			wantStatus: posts.StatusDraft,
+		},
+		{
+			name: "Associate rejected",
+			ctx:  authorCtx(),
+			req: &dto.CreatePostRequest{
+				ClubId: postClubId.String(), Title: "Actu associate", Content: "Corps",
+			},
+			checker:    associateChecker,
 			wantErrors: true,
 		},
 		{

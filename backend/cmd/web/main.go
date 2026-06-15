@@ -83,7 +83,7 @@ func main() {
 
 	// Public routes (with CSRF)
 	homeHandler := handlers.NewHomeHandler(svc.MemberService, svc.PostService)
-	userHandler := handlers.NewUserHandler(svc.UserService)
+	userHandler := handlers.NewUserHandler(svc.UserService, cfg.AppEnv == "production")
 
 	e.GET("/", homeHandler.HandleLandingPage)
 	e.GET("/user/connexion", userHandler.HandleLoginPage, csrfMW)

@@ -56,7 +56,7 @@ func (s *postService) callerUserId(ctx context.Context) (string, bool) {
 	return id, ok && id != ""
 }
 
-// isClubManager returns true when userId is president or staff in clubId, or is superadmin.
+// isClubManager returns true when userId is president, staff or coach in clubId, or is superadmin.
 func (s *postService) isClubManager(ctx context.Context, userId, clubId string) (bool, error) {
 	isSuperAdmin, err := s.roleChecker.IsSuperAdmin(ctx, userId)
 	if err != nil {
@@ -65,7 +65,7 @@ func (s *postService) isClubManager(ctx context.Context, userId, clubId string) 
 	if isSuperAdmin {
 		return true, nil
 	}
-	return s.roleChecker.HasRole(ctx, userId, clubId, roles.RolePresident, roles.RoleStaff)
+	return s.roleChecker.HasRole(ctx, userId, clubId, roles.RolePresident, roles.RoleStaff, roles.RoleCoach)
 }
 
 // ── Operations ────────────────────────────────────────────────────────────────

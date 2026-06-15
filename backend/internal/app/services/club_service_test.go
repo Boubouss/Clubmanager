@@ -44,9 +44,13 @@ func (m mockClubStatusRepo) UpdateStatus(ctx context.Context, clubId, status str
 
 type mockRoleCheckerForClub struct {
 	isSuperAdminFunc func(context.Context, string) (bool, error)
+	hasRoleFunc      func(context.Context, string, string, ...string) (bool, error)
 }
 
 func (m mockRoleCheckerForClub) HasRole(ctx context.Context, userId, clubId string, roles ...string) (bool, error) {
+	if m.hasRoleFunc != nil {
+		return m.hasRoleFunc(ctx, userId, clubId, roles...)
+	}
 	return false, nil
 }
 func (m mockRoleCheckerForClub) IsSuperAdmin(ctx context.Context, userId string) (bool, error) {
